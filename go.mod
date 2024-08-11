@@ -1,17 +1,23 @@
 module github.com/mrf345/safelock-cli
 
-go 1.18
+go 1.22
+
+require github.com/mrf345/safelock-cli/internal/utils v1.0.0
+
+replace github.com/mrf345/safelock-cli/internal/utils => ./internal/utils
 
 require (
+	github.com/GianlucaGuarini/go-observable v0.0.0-20171228155646-e39e699e0a00
+	github.com/inancgumus/screen v0.0.0-20190314163918-06e984b86ed3
 	github.com/mholt/archiver/v4 v4.0.0-alpha.8
 	github.com/spf13/cobra v1.8.1
+	github.com/stretchr/testify v1.9.0
 )
 
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/inancgumus/screen v0.0.0-20190314163918-06e984b86ed3 // indirect
+	github.com/kr/pretty v0.3.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
 	golang.org/x/sys v0.23.0 // indirect
 	golang.org/x/term v0.23.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
@@ -34,7 +40,7 @@ require (
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/therootcompany/xz v1.0.1 // indirect
-	github.com/ulikunitz/xz v0.5.10 // indirect
+	github.com/ulikunitz/xz v0.5.12 // indirect
 	go4.org v0.0.0-20200411211856-f5505b9728dd // indirect
 	golang.org/x/crypto v0.26.0
 	golang.org/x/text v0.17.0 // indirect

@@ -1,12 +1,12 @@
 package cmd
 
 import (
-	"fmt"
+	"context"
 
 	"github.com/spf13/cobra"
 
-	"github.com/mrf345/safelock-cli/encryption"
-	"github.com/mrf345/safelock-cli/utils"
+	"github.com/mrf345/safelock-cli/internal/utils"
+	"github.com/mrf345/safelock-cli/safelock"
 )
 
 var encryptCmd = &cobra.Command{
@@ -14,9 +14,10 @@ var encryptCmd = &cobra.Command{
 	Short: "encrypt [file or directory path] [encrypted file path]",
 	Long:  "encrypt [file or directory path] [encrypted file path]",
 	Run: func(cmd *cobra.Command, args []string) {
-		const example = "example: safelock-cli encrypt test.txt encrypted.bin"
 		var err error
-		var password string
+		var pwd string
+		var sl *safelock.Safelock
+		const example = "example: safelock-cli encrypt test.txt encrypted.bin"
 
 		switch len(args) {
 		case 0:
@@ -29,18 +30,22 @@ var encryptCmd = &cobra.Command{
 			utils.PrintErrsAndExit("too many arguments", example)
 		}
 
-		if password, err = utils.GetPassword(); err != nil {
+		if useSha256 {
+			sl = safelock.NewSha256()
+		} else {
+			sl = safelock.New()
+		}
+
+		if pwd, err = utils.GetPassword(sl.MinPasswordLength); err != nil {
 			utils.PrintErrsAndExit(err.Error())
 		}
 
-		options := encryption.GetDefaultEncryptionOptions()
+		sl.Quiet = beQuiet
 		inputPath, outputPath := args[0], args[1]
 
-		if err = encryption.Encrypt(inputPath, outputPath, password, options); err != nil {
+		if err = sl.Encrypt(context.TODO(), inputPath, outputPath, pwd); err != nil {
 			utils.PrintErrsAndExit(err.Error())
 		}
-
-		fmt.Printf("Encrypted: %s\n", outputPath)
 	},
 }
 

@@ -1,3 +1,4 @@
+// cobra cli setup files
 package cmd
 
 import (
@@ -6,6 +7,9 @@ import (
 
 	"github.com/spf13/cobra"
 )
+
+var useSha256 bool
+var beQuiet bool
 
 var rootCmd = &cobra.Command{
 	Use:   "safelock-cli",
@@ -24,4 +28,6 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.PersistentFlags().BoolVar(&useSha256, "sha256", false, "use SHA256 (faster) instead of SHA512")
+	rootCmd.PersistentFlags().BoolVar(&beQuiet, "quiet", false, "disable output logs")
 }

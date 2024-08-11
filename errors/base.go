@@ -1,3 +1,4 @@
+// explicitly defined errors you should handle
 package myErrs
 
 type BaseError struct {
