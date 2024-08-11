@@ -84,13 +84,13 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPath, outputPath, password
 	for {
 		select {
 		case <-ctx.Done():
-			sl.Registry.RemoveAll()
+			_ = sl.Registry.RemoveAll()
 			err = &myErrs.ErrContextExpired{}
 			return
 		case err = <-errs:
 			return
 		case <-signals:
-			sl.Registry.RemoveAll()
+			_ = sl.Registry.RemoveAll()
 			return
 		}
 	}
