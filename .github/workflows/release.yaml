@@ -23,7 +23,7 @@ jobs:
     - uses: actions/checkout@v4
     - uses: wangyoucao577/go-release-action@v1
       with:
-        github_token: ${{ secrets.GTOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
         goos: ${{ matrix.goos }}
         goarch: ${{ matrix.goarch }}
         extra_files: LICENSE README.md
