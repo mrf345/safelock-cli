@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
-	"path"
+	"path/filepath"
 	"testing"
 
 	myErrs "github.com/mrf345/safelock-cli/errors"
@@ -52,7 +52,7 @@ func TestDecryptFileWithTimeout(t *testing.T) {
 	sl := GetQuietSafelock()
 	inputFile, _ := sl.TempStore.NewFile("", "input_file")
 	outputDir, _ := sl.TempStore.NewDir("", "output_dir")
-	outputPath := path.Join(outputDir.Path, "output_file.sla")
+	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
 
 	defer cancel()
 	defer inputFile.RemoveQuietly()
@@ -76,7 +76,7 @@ func TestDecryptFileWithWrongPassword(t *testing.T) {
 	sl := GetQuietSafelock()
 	inputFile, _ := sl.TempStore.NewFile("", "input_file")
 	outputDir, _ := sl.TempStore.NewDir("", "output_dir")
-	outputPath := path.Join(outputDir.Path, "output_file.sla")
+	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
 
 	defer inputFile.RemoveQuietly()
 	defer outputDir.RemoveQuietly()

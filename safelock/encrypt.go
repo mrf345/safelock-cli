@@ -21,7 +21,7 @@ import (
 )
 
 // encrypts `inputPath` which can be either a file or directory and output into the `outputPath`
-// which must be a nonexisting file path.
+// which must be a nonexisting file filepath.
 //
 // NOTE: `ctx` context is optional you can pass `nil` and the method will handle it
 func (sl *Safelock) Encrypt(ctx context.Context, inputPath, outputPath, password string) (err error) {
