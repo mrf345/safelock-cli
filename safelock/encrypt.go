@@ -41,7 +41,7 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPath, outputPath, password
 		Trigger(EventStatusError, err)
 
 	go func() {
-		var archiveFile *utils.TempFile
+		var archiveFile *utils.RegFile
 		var outputFile *os.File
 
 		sl.updateStatus("Validating input and output", "0%")
@@ -66,42 +66,31 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPath, outputPath, password
 			return
 		}
 
+		unRegister := sl.Registry.Register(outputFile)
+
 		sl.updateStatus("Encrypting compressed archive file", "30%")
-		if err = sl.encryptAndWriteInChunks(password, archiveFile, outputFile); err != nil {
+		if err = sl.encryptAndWriteInChunks(password, archiveFile.File, outputFile); err != nil {
 			errs <- fmt.Errorf("failed to encrypt file > %w", err)
 			return
 		}
 
-		if err = outputFile.Close(); err != nil {
-			errs <- fmt.Errorf("failed to close output file > %w", err)
-			return
-		}
-
-		if err = archiveFile.Close(); err != nil {
-			errs <- fmt.Errorf("failed to close temporary file > %w", err)
-			return
-		}
-
-		if err = archiveFile.Remove(); err != nil {
-			errs <- fmt.Errorf("failed to remove temporary file > %w", err)
-			return
-		}
-
+		unRegister()
 		sl.updateStatus(fmt.Sprintf("Encrypted %s", outputPath), "100%")
 		sl.StatusObs.Trigger(EventStatusEnd)
-		// close(signals)
+		close(signals)
 		close(errs)
 	}()
 
 	for {
 		select {
 		case <-ctx.Done():
+			sl.Registry.RemoveAll()
 			err = &myErrs.ErrContextExpired{}
 			return
 		case err = <-errs:
 			return
 		case <-signals:
-			sl.TempStore.RemoveAll()
+			sl.Registry.RemoveAll()
 			return
 		}
 	}
@@ -134,7 +123,7 @@ func validateEncryptionPaths(inputPath, outputPath string) (err error) {
 	return
 }
 
-func (sl *Safelock) createArchiveFile(ctx context.Context, inputPath string) (file *utils.TempFile, err error) {
+func (sl *Safelock) createArchiveFile(ctx context.Context, inputPath string) (file *utils.RegFile, err error) {
 	var files []archiver.File
 
 	statusCtx, cancelStatus := context.WithCancel(ctx)
@@ -145,7 +134,7 @@ func (sl *Safelock) createArchiveFile(ctx context.Context, inputPath string) (fi
 		return
 	}
 
-	if file, err = sl.TempStore.NewFile("", "e_output_temp"); err != nil {
+	if file, err = sl.Registry.NewFile("", "e_output_temp"); err != nil {
 		err = fmt.Errorf("failed to create temporary file > %w", err)
 		return
 	}
@@ -183,22 +172,23 @@ func (sl *Safelock) updateArchiveFileStatus(ctx context.Context, inputPath, arch
 	}
 }
 
-func (sl *Safelock) encryptAndWriteInChunks(pwd string, inputFile *utils.TempFile, outputFile *os.File) (err error) {
+func (sl *Safelock) encryptAndWriteInChunks(pwd string, inputFile *os.File, outputFile *os.File) (err error) {
 	for err = range sl.runFilesEncryptionPipe(inputFile, outputFile, pwd) {
 		if err != nil {
+			os.Remove(outputFile.Name())
 			return
 		}
 	}
 	return
 }
 
-func (sl *Safelock) runFilesEncryptionPipe(inputFile *utils.TempFile, outputFile *os.File, pwd string) <-chan error {
+func (sl *Safelock) runFilesEncryptionPipe(inputFile *os.File, outputFile *os.File, pwd string) <-chan error {
 	errs := make(chan error)
 
 	go func() {
 		size := sl.encryptionBufferSize()
-		calc := &utils.ChunkPercentCalculator{File: inputFile.File, ChunkSize: size, Start: 30.0, Portion: 70.0}
-		chunks := sl.getFileChunksChannel(inputFile.File, size, errs)
+		calc := &utils.ChunkPercentCalculator{File: inputFile, ChunkSize: size, Start: 30.0, Portion: 70.0}
+		chunks := sl.getFileChunksChannel(inputFile, size, errs)
 		encrypted := sl.getEncryptedChunksChannel(pwd, chunks, errs)
 		sl.writeChunks(outputFile, "Encrypting", calc, encrypted, errs)
 	}()

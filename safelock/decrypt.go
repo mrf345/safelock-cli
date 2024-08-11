@@ -36,7 +36,7 @@ func (sl *Safelock) Decrypt(ctx context.Context, inputPath, outputPath, password
 		Trigger(EventStatusError, err)
 
 	go func() {
-		var archiveFile *utils.TempFile
+		var archiveFile *utils.RegFile
 
 		sl.updateStatus("Validating input and output", "0%")
 		if err = validateDecryptionPaths(inputPath, outputPath); err != nil {
@@ -50,6 +50,11 @@ func (sl *Safelock) Decrypt(ctx context.Context, inputPath, outputPath, password
 			return
 		}
 
+		defer func() {
+			archiveFile.Close()
+			archiveFile.Remove()
+		}()
+
 		if _, err = archiveFile.Seek(0, io.SeekStart); err != nil {
 			errs <- fmt.Errorf("failed to read archive file > %w", err)
 			return
@@ -58,16 +63,6 @@ func (sl *Safelock) Decrypt(ctx context.Context, inputPath, outputPath, password
 		sl.updateStatus("Extracting compressed archive file", "70%")
 		if err = sl.extractArchiveFile(ctx, outputPath, archiveFile); err != nil {
 			errs <- fmt.Errorf("failed to extract archive file > %w", err)
-			return
-		}
-
-		if err = archiveFile.Close(); err != nil {
-			errs <- fmt.Errorf("failed to close archive file > %w", err)
-			return
-		}
-
-		if err = archiveFile.Remove(); err != nil {
-			errs <- fmt.Errorf("failed to remove archive file > %w", err)
 			return
 		}
 
@@ -80,12 +75,13 @@ func (sl *Safelock) Decrypt(ctx context.Context, inputPath, outputPath, password
 	for {
 		select {
 		case <-ctx.Done():
+			sl.Registry.RemoveAll()
 			err = &myErrs.ErrContextExpired{}
 			return
 		case err = <-errs:
 			return
 		case <-signals:
-			sl.TempStore.RemoveAll()
+			sl.Registry.RemoveAll()
 			return
 		}
 	}
@@ -103,7 +99,7 @@ func validateDecryptionPaths(inputPath, outputPath string) (err error) {
 	return
 }
 
-func (sl *Safelock) decryptArchiveFileInChunks(inputPath, password string) (outputFile *utils.TempFile, err error) {
+func (sl *Safelock) decryptArchiveFileInChunks(inputPath, password string) (outputFile *utils.RegFile, err error) {
 	var inputFile *os.File
 
 	if inputFile, err = os.Open(inputPath); err != nil {
@@ -111,13 +107,15 @@ func (sl *Safelock) decryptArchiveFileInChunks(inputPath, password string) (outp
 		return
 	}
 
-	if outputFile, err = sl.TempStore.NewFile("", "d_output_temp"); err != nil {
+	if outputFile, err = sl.Registry.NewFile("", "d_output_temp"); err != nil {
 		err = fmt.Errorf("failed to create temporary file > %w", err)
 		return
 	}
 
-	for err = range sl.runFilesDecryptionPipe(inputFile, outputFile, password) {
+	for err = range sl.runFilesDecryptionPipe(inputFile, outputFile.File, password) {
 		if err != nil {
+			outputFile.Close()
+			outputFile.Remove()
 			return
 		}
 	}
@@ -125,7 +123,7 @@ func (sl *Safelock) decryptArchiveFileInChunks(inputPath, password string) (outp
 	return
 }
 
-func (sl *Safelock) runFilesDecryptionPipe(inputFile *os.File, outputFile *utils.TempFile, pwd string) <-chan error {
+func (sl *Safelock) runFilesDecryptionPipe(inputFile *os.File, outputFile *os.File, pwd string) <-chan error {
 	errs := make(chan error)
 
 	go func() {
@@ -133,7 +131,7 @@ func (sl *Safelock) runFilesDecryptionPipe(inputFile *os.File, outputFile *utils
 		calc := &utils.ChunkPercentCalculator{File: inputFile, ChunkSize: size, Start: 1.0, Portion: 70.0}
 		chunks := sl.getFileChunksChannel(inputFile, size, errs)
 		decrypted := sl.getDecryptedChunksChannel(pwd, chunks, errs)
-		sl.writeChunks(outputFile.File, "Decrypting", calc, decrypted, errs)
+		sl.writeChunks(outputFile, "Decrypting", calc, decrypted, errs)
 	}()
 
 	return errs
@@ -177,7 +175,7 @@ func (sl *Safelock) getDecryptedChunksChannel(pwd string, chunks <-chan *fileChu
 	return decrypted
 }
 
-func (sl *Safelock) extractArchiveFile(ctx context.Context, outputPath string, archive *utils.TempFile) (err error) {
+func (sl *Safelock) extractArchiveFile(ctx context.Context, outputPath string, archive *utils.RegFile) (err error) {
 	var reader io.ReadCloser
 	var fileHandler = getArchiveFileHandler(outputPath)
 

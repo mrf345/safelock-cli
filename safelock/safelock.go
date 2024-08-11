@@ -60,7 +60,7 @@ type Safelock struct {
 	// disable all output and logs (default: false)
 	Quiet bool
 	// configures how we handle temporary files
-	TempStore utils.TempStore
+	Registry *utils.FilesRegistry
 }
 
 // creates a new [safelock.Safelock] instance with the default recommended options
@@ -76,9 +76,9 @@ func New() *Safelock {
 		ChannelSize:       5,
 		Hash:              sha512.New,
 		StatusObs:         observable.New(),
-		TempStore: utils.TempStore{
-			Cleanup:    true,
+		Registry: &utils.FilesRegistry{
 			PrefixText: "SF_temp",
+			Paths:      make(map[string]struct{}),
 		},
 	}
 }

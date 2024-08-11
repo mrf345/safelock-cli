@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -16,9 +17,9 @@ func TestDecryptWithInvalidInputPath(t *testing.T) {
 	inputPath := "wrong_input.txt"
 	password := "testing123456"
 	sl := GetQuietSafelock()
-	outputFile, _ := sl.TempStore.NewFile("", "output_file")
+	outputFile, _ := os.CreateTemp("", "output_file")
 
-	defer outputFile.RemoveQuietly()
+	defer os.Remove(outputFile.Name())
 
 	err := sl.Decrypt(context.TODO(), inputPath, outputFile.Name(), password)
 	_, isExpectedErr := errors.Unwrap(err).(*myErrs.ErrInvalidFile)
@@ -31,11 +32,11 @@ func TestDecryptWithInvalidOutputPath(t *testing.T) {
 	assert := assert.New(t)
 	password := "testing123456"
 	sl := GetQuietSafelock()
-	inputFile, _ := sl.TempStore.NewFile("", "input_file")
-	outputFile, _ := sl.TempStore.NewFile("", "output_file")
+	inputFile, _ := os.CreateTemp("", "input_file")
+	outputFile, _ := os.CreateTemp("", "output_file")
 
-	defer inputFile.RemoveQuietly()
-	defer outputFile.RemoveQuietly()
+	defer os.Remove(inputFile.Name())
+	defer os.Remove(outputFile.Name())
 
 	err := sl.Decrypt(context.TODO(), inputFile.Name(), outputFile.Name(), password)
 	_, isExpectedErr := errors.Unwrap(err).(*myErrs.ErrInvalidDirectory)
@@ -50,13 +51,11 @@ func TestDecryptFileWithTimeout(t *testing.T) {
 	content := "Hello World!"
 	ctx, cancel := context.WithTimeout(context.Background(), 0)
 	sl := GetQuietSafelock()
-	inputFile, _ := sl.TempStore.NewFile("", "input_file")
-	outputDir, _ := sl.TempStore.NewDir("", "output_dir")
-	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
+	inputFile, _ := os.CreateTemp("", "input_file")
+	outputDirPath, _ := os.MkdirTemp("", "output_dir")
+	outputPath := filepath.Join(outputDirPath, "output_file.sla")
 
-	defer cancel()
-	defer inputFile.RemoveQuietly()
-	defer outputDir.RemoveQuietly()
+	cancel()
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
@@ -67,6 +66,10 @@ func TestDecryptFileWithTimeout(t *testing.T) {
 	assert.Nil(encErr)
 	assert.NotNil(decErr)
 	assert.True(isExpectedErr)
+
+	// XXX: don't defer (temp files won't be deleted)
+	os.Remove(inputFile.Name())
+	os.RemoveAll(outputDirPath)
 }
 
 func TestDecryptFileWithWrongPassword(t *testing.T) {
@@ -74,20 +77,22 @@ func TestDecryptFileWithWrongPassword(t *testing.T) {
 	password := "testing123456"
 	content := "Hello World!"
 	sl := GetQuietSafelock()
-	inputFile, _ := sl.TempStore.NewFile("", "input_file")
-	outputDir, _ := sl.TempStore.NewDir("", "output_dir")
-	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
+	inputFile, _ := os.CreateTemp("", "input_file")
+	outputDirPath, _ := os.MkdirTemp("", "output_dir")
+	outputPath := filepath.Join(outputDirPath, "output_file.sla")
 
-	defer inputFile.RemoveQuietly()
-	defer outputDir.RemoveQuietly()
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
 	encErr := sl.Encrypt(context.TODO(), inputFile.Name(), outputPath, password)
-	decErr := sl.Decrypt(context.TODO(), outputPath, outputDir.Path, "wrong")
+	decErr := sl.Decrypt(context.TODO(), outputPath, outputDirPath, "wrong")
 	_, isExpectedErr := errors.Unwrap(decErr).(*myErrs.ErrFailedToAuthenticate)
 
 	assert.Nil(encErr)
 	assert.NotNil(decErr)
 	assert.True(isExpectedErr)
+
+	// XXX: don't defer (temp files won't be deleted)
+	os.Remove(inputFile.Name())
+	os.RemoveAll(outputDirPath)
 }

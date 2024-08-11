@@ -20,18 +20,32 @@ func ExampleSafelock_Encrypt() {
 	// Increase minimum password length requirement
 	lock.MinPasswordLength = 12
 
-	// prepare files to encrypt
-	file, _ := os.CreateTemp("", "test_input")
-	dirPath, _ := os.MkdirTemp("", "test_output")
-	filePath := file.Name()
-	encryptedFilePath := filepath.Join(dirPath, "encrypted.sla")
+	// Prepare files to encrypt (should ignore this)
+	inputFilePath, encryptedFilePath, clean := getUnencryptedFilePaths()
+	defer clean()
 
 	// Encrypt `filePath` with the assigned settings
-	if err := lock.Encrypt(ctx, filePath, encryptedFilePath, password); err != nil {
+	if err := lock.Encrypt(ctx, inputFilePath, encryptedFilePath, password); err != nil {
 		fmt.Println("failed!")
 	}
 
 	// Output:
+}
+
+func getUnencryptedFilePaths() (
+	inputFilePath,
+	encryptedFilePath string,
+	clean func(),
+) {
+	inputFile, _ := os.CreateTemp("", "test_input")
+	inputFilePath = inputFile.Name()
+	outputDir, _ := os.MkdirTemp("", "test_output")
+	encryptedFilePath = filepath.Join(outputDir, "encrypted.sla")
+	clean = func() {
+		os.Remove(inputFile.Name())
+		os.RemoveAll(outputDir)
+	}
+	return
 }
 
 func ExampleSafelock_Decrypt() {
@@ -42,19 +56,20 @@ func ExampleSafelock_Decrypt() {
 	// Disable logs and output
 	lock.Quiet = true
 
-	// prepare files to decrypt
-	encryptedFilePath, _ := getEncryptedFilePath()
-	outputDir := filepath.Dir(encryptedFilePath)
+	// Prepare files to decrypt (should ignore this)
+	encryptedFilePath, clean := getEncryptedFilePath()
+	outputDirPath := filepath.Dir(encryptedFilePath)
+	defer clean()
 
 	// Decrypt `encryptedFilePath` with the assigned settings
-	if err := lock.Decrypt(ctx, encryptedFilePath, outputDir, password); err != nil {
+	if err := lock.Decrypt(ctx, encryptedFilePath, outputDirPath, password); err != nil {
 		fmt.Println("failed!")
 	}
 
 	// Output:
 }
 
-func getEncryptedFilePath() (encryptedFilePath string, err error) {
+func getEncryptedFilePath() (encryptedFilePath string, clean func()) {
 	lock := safelock.New()
 	lock.Quiet = true
 	password := "testing123456"
@@ -63,6 +78,10 @@ func getEncryptedFilePath() (encryptedFilePath string, err error) {
 	dirPath, _ := os.MkdirTemp("", "test_output")
 	filePath := file.Name()
 	encryptedFilePath = filepath.Join(dirPath, "encrypted.sla")
-	err = lock.Encrypt(ctx, filePath, encryptedFilePath, password)
+	_ = lock.Encrypt(ctx, filePath, encryptedFilePath, password)
+	clean = func() {
+		os.Remove(file.Name())
+		os.RemoveAll(dirPath)
+	}
 	return
 }

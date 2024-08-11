@@ -17,9 +17,9 @@ func TestEncryptWithInvalidInputPath(t *testing.T) {
 	inputPath := "wrong_input.txt"
 	password := "testing123456"
 	sl := GetQuietSafelock()
-	outputFile, _ := sl.TempStore.NewFile("", "output_file")
+	outputFile, _ := os.CreateTemp("", "output_file")
 
-	defer outputFile.RemoveQuietly()
+	defer os.Remove(outputFile.Name())
 	err := sl.Encrypt(context.TODO(), inputPath, outputFile.Name(), password)
 	_, isExpectedErr := errors.Unwrap(err).(*myErrs.ErrInvalidFile)
 
@@ -31,11 +31,11 @@ func TestEncryptWithInvalidOutputPath(t *testing.T) {
 	assert := assert.New(t)
 	password := "testing123456"
 	sl := GetQuietSafelock()
-	inputFile, _ := sl.TempStore.NewFile("", "input_file")
-	outputFile, _ := sl.TempStore.NewFile("", "output_file")
+	inputFile, _ := os.CreateTemp("", "input_file")
+	outputFile, _ := os.CreateTemp("", "output_file")
 
-	defer inputFile.RemoveQuietly()
-	defer outputFile.RemoveQuietly()
+	defer os.Remove(inputFile.Name())
+	defer os.Remove(outputFile.Name())
 	err := sl.Encrypt(context.TODO(), inputFile.Name(), outputFile.Name(), password)
 	_, isExpectedErr := errors.Unwrap(err).(*myErrs.ErrInvalidOutputPath)
 
@@ -48,19 +48,19 @@ func TestEncryptFile(t *testing.T) {
 	password := "testing123456"
 	encSl := GetQuietSafelock()
 	decSl := GetQuietSafelock()
-	inputFile, _ := encSl.TempStore.NewFile("", "input_file")
-	outputDir, _ := encSl.TempStore.NewDir("", "output_dir")
-	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
+	inputFile, _ := os.CreateTemp("", "input_file")
+	outputDir, _ := os.MkdirTemp("", "output_dir")
+	outputPath := filepath.Join(outputDir, "output_file.sla")
 	content := "Hello World!"
-	decryptedPath := filepath.Join(outputDir.Path, filepath.Base(inputFile.Name()))
+	decryptedPath := filepath.Join(outputDir, filepath.Base(inputFile.Name()))
 
-	defer inputFile.RemoveQuietly()
-	defer outputDir.RemoveQuietly()
+	defer os.Remove(inputFile.Name())
+	defer os.RemoveAll(outputDir)
 	_, _ = inputFile.WriteString(content)
 	inputFile.Close()
 
 	inErr := encSl.Encrypt(context.TODO(), inputFile.Name(), outputPath, password)
-	outErr := decSl.Decrypt(context.TODO(), outputPath, outputDir.Path, password)
+	outErr := decSl.Decrypt(context.TODO(), outputPath, outputDir, password)
 	reader, _ := os.Open(decryptedPath)
 	decrypted, _ := io.ReadAll(reader)
 	reader.Close()
@@ -76,18 +76,18 @@ func TestEncryptFileWithSha256AndGzip(t *testing.T) {
 	content := "Hello World!"
 	encSl := GetQuietSha256GzipSafelock()
 	decSl := GetQuietSha256GzipSafelock()
-	inputFile, _ := encSl.TempStore.NewFile("", "input_file")
-	outputDir, _ := encSl.TempStore.NewDir("", "output_dir")
-	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
-	decryptedPath := filepath.Join(outputDir.Path, filepath.Base(inputFile.Name()))
+	inputFile, _ := os.CreateTemp("", "input_file")
+	outputDir, _ := os.MkdirTemp("", "output_dir")
+	outputPath := filepath.Join(outputDir, "output_file.sla")
+	decryptedPath := filepath.Join(outputDir, filepath.Base(inputFile.Name()))
 
-	defer inputFile.RemoveQuietly()
-	defer outputDir.RemoveQuietly()
+	defer os.Remove(inputFile.Name())
+	defer os.RemoveAll(outputDir)
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
 	inErr := encSl.Encrypt(context.TODO(), inputFile.Name(), outputPath, password)
-	outErr := decSl.Decrypt(context.TODO(), outputPath, outputDir.Path, password)
+	outErr := decSl.Decrypt(context.TODO(), outputPath, outputDir, password)
 	reader, _ := os.Open(decryptedPath)
 	decrypted, _ := io.ReadAll(reader)
 
@@ -102,13 +102,11 @@ func TestEncryptFileWithTimeout(t *testing.T) {
 	content := "Hello World!"
 	ctx, cancel := context.WithTimeout(context.Background(), 0)
 	sl := GetQuietSafelock()
-	inputFile, _ := sl.TempStore.NewFile("", "input_file")
-	outputDir, _ := sl.TempStore.NewDir("", "output_dir")
-	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
+	inputFile, _ := os.CreateTemp("", "input_file")
+	outputDir, _ := os.MkdirTemp("", "output_dir")
+	outputPath := filepath.Join(outputDir, "output_file.sla")
 
-	defer cancel()
-	defer inputFile.RemoveQuietly()
-	defer outputDir.RemoveQuietly()
+	cancel()
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
@@ -117,4 +115,8 @@ func TestEncryptFileWithTimeout(t *testing.T) {
 
 	assert.NotNil(err)
 	assert.True(isExpectedErr)
+
+	// XXX: don't defer (temp files won't be deleted)
+	os.Remove(inputFile.Name())
+	os.RemoveAll(outputDir)
 }
