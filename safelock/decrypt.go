@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/mholt/archiver/v4"
 	myErrs "github.com/mrf345/safelock-cli/errors"
@@ -201,13 +201,13 @@ func getArchiveFileHandler(outputPath string) archiver.FileHandler {
 	return func(ctx context.Context, file archiver.File) (err error) {
 		var outputFile *os.File
 		var reader io.ReadCloser
-		var fullPath = path.Join(outputPath, file.NameInArchive)
+		var fullPath = filepath.Join(outputPath, file.NameInArchive)
 
 		if file.IsDir() {
 			err = os.MkdirAll(fullPath, file.Mode().Perm())
 			return
 		} else {
-			if err = os.MkdirAll(path.Dir(fullPath), file.Mode().Perm()); err != nil {
+			if err = os.MkdirAll(filepath.Dir(fullPath), file.Mode().Perm()); err != nil {
 				return
 			}
 		}

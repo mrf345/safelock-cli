@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path"
+	"path/filepath"
 	"testing"
 
 	myErrs "github.com/mrf345/safelock-cli/errors"
@@ -50,9 +50,9 @@ func TestEncryptFile(t *testing.T) {
 	decSl := GetQuietSafelock()
 	inputFile, _ := encSl.TempStore.NewFile("", "input_file")
 	outputDir, _ := encSl.TempStore.NewDir("", "output_dir")
-	outputPath := path.Join(outputDir.Path, "output_file.sla")
+	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
 	content := "Hello World!"
-	decryptedPath := path.Join(outputDir.Path, path.Base(inputFile.Name()))
+	decryptedPath := filepath.Join(outputDir.Path, filepath.Base(inputFile.Name()))
 
 	defer inputFile.RemoveQuietly()
 	defer outputDir.RemoveQuietly()
@@ -78,8 +78,8 @@ func TestEncryptFileWithSha256AndGzip(t *testing.T) {
 	decSl := GetQuietSha256GzipSafelock()
 	inputFile, _ := encSl.TempStore.NewFile("", "input_file")
 	outputDir, _ := encSl.TempStore.NewDir("", "output_dir")
-	outputPath := path.Join(outputDir.Path, "output_file.sla")
-	decryptedPath := path.Join(outputDir.Path, path.Base(inputFile.Name()))
+	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
+	decryptedPath := filepath.Join(outputDir.Path, filepath.Base(inputFile.Name()))
 
 	defer inputFile.RemoveQuietly()
 	defer outputDir.RemoveQuietly()
@@ -104,7 +104,7 @@ func TestEncryptFileWithTimeout(t *testing.T) {
 	sl := GetQuietSafelock()
 	inputFile, _ := sl.TempStore.NewFile("", "input_file")
 	outputDir, _ := sl.TempStore.NewDir("", "output_dir")
-	outputPath := path.Join(outputDir.Path, "output_file.sla")
+	outputPath := filepath.Join(outputDir.Path, "output_file.sla")
 
 	defer cancel()
 	defer inputFile.RemoveQuietly()

@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
 
 	"github.com/mrf345/safelock-cli/safelock"
 )
@@ -24,7 +24,7 @@ func ExampleSafelock_Encrypt() {
 	file, _ := os.CreateTemp("", "test_input")
 	dirPath, _ := os.MkdirTemp("", "test_output")
 	filePath := file.Name()
-	encryptedFilePath := path.Join(dirPath, "encrypted.sla")
+	encryptedFilePath := filepath.Join(dirPath, "encrypted.sla")
 
 	// Encrypt `filePath` with the assigned settings
 	if err := lock.Encrypt(ctx, filePath, encryptedFilePath, password); err != nil {
@@ -44,7 +44,7 @@ func ExampleSafelock_Decrypt() {
 
 	// prepare files to decrypt
 	encryptedFilePath, _ := getEncryptedFilePath()
-	outputDir := path.Dir(encryptedFilePath)
+	outputDir := filepath.Dir(encryptedFilePath)
 
 	// Decrypt `encryptedFilePath` with the assigned settings
 	if err := lock.Decrypt(ctx, encryptedFilePath, outputDir, password); err != nil {
@@ -62,7 +62,7 @@ func getEncryptedFilePath() (encryptedFilePath string, err error) {
 	file, _ := os.CreateTemp("", "test_input")
 	dirPath, _ := os.MkdirTemp("", "test_output")
 	filePath := file.Name()
-	encryptedFilePath = path.Join(dirPath, "encrypted.sla")
+	encryptedFilePath = filepath.Join(dirPath, "encrypted.sla")
 	err = lock.Encrypt(ctx, filePath, encryptedFilePath, password)
 	return
 }
