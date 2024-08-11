@@ -24,7 +24,7 @@ func ExampleSafelock_Encrypt() {
 	inputFilePath, encryptedFilePath, clean := getUnencryptedFilePaths()
 	defer clean()
 
-	// Encrypt `filePath` with the assigned settings
+	// Encrypt `inputFilePath` with the assigned settings
 	if err := lock.Encrypt(ctx, inputFilePath, encryptedFilePath, password); err != nil {
 		fmt.Println("failed!")
 	}
