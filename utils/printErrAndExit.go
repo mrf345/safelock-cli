@@ -7,6 +7,7 @@ import (
 	"github.com/inancgumus/screen"
 )
 
+// pretty print error and change exit status
 func PrintErrsAndExit(errs ...string) {
 	screen.Clear()
 	screen.MoveTopLeft()

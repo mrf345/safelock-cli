@@ -1,28 +1,3 @@
-// ⚡ Fast files encryption (AES-GSM) package.
-//
-// # Example
-//
-//	package main
-//
-//	import "github.com/mrf345/safelock-cli/safelock"
-//
-//	func main() {
-//	  lock := safelock.New()
-//	  inputPath := "/home/testing/important"
-//	  outputPath := "/home/testing/encrypted.sla"
-//	  extractTo := "/home/testing"
-//	  password := "testing123456"
-//
-//	  // Encrypts `inputPath` with the default settings
-//	  if err := lock.Encrypt(nil, inputPath, outputPath, password); err != nil {
-//	    panic(err)
-//	  }
-//
-//	  // Decrypts `outputPath` with the default settings
-//	  if err := lock.Decrypt(nil, outputPath, extractTo, password); err != nil {
-//	    panic(err)
-//	  }
-//	}
 package safelock
 
 import (
@@ -32,7 +7,7 @@ import (
 
 	"github.com/GianlucaGuarini/go-observable"
 	"github.com/mholt/archiver/v4"
-	"github.com/mrf345/safelock-cli/internal/utils"
+	"github.com/mrf345/safelock-cli/utils"
 )
 
 // the main struct used to configure advanced encryption/decryption options
@@ -45,8 +20,8 @@ type Safelock struct {
 	IterationCount int
 	// encryption key length (default: 64)
 	KeyLength int
-	// salt length used to generate the encryption key (default: 12)
-	SaltLength int
+	// nonce length used to generate the encryption key (default: 12)
+	NonceLength int
 	// encrypted/decrypted files buffer size (default: 4096)
 	BufferSize int
 	// encryption/decryption channels buffer size increasing/decreasing it might improve performance (default: 5)
@@ -71,7 +46,7 @@ func New() *Safelock {
 		IterationCount:    32,
 		KeyLength:         64,
 		BufferSize:        4096,
-		SaltLength:        12,
+		NonceLength:       12,
 		MinPasswordLength: 8,
 		ChannelSize:       5,
 		Hash:              sha512.New,
@@ -92,9 +67,9 @@ func NewSha256() *Safelock {
 }
 
 func (sl *Safelock) encryptionBufferSize() int {
-	return sl.BufferSize - (sl.SaltLength + 4)
+	return sl.BufferSize - (sl.NonceLength + 4)
 }
 
 func (sl *Safelock) decryptionBufferSize() int {
-	return sl.BufferSize + sl.SaltLength
+	return sl.BufferSize + sl.NonceLength
 }

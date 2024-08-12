@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// helps calculate file chunks percentage
 type ChunkPercentCalculator struct {
 	File      *os.File
 	ChunkSize int
@@ -14,6 +15,7 @@ type ChunkPercentCalculator struct {
 	counter   int
 }
 
+// calculate the percent of file chunks
 func (c *ChunkPercentCalculator) GetPercent() (percent string, err error) {
 	var stat fs.FileInfo
 

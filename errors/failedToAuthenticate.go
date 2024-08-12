@@ -2,6 +2,7 @@ package myErrs
 
 import "fmt"
 
+// wrong password or corrupted encryption
 type ErrFailedToAuthenticate struct {
 	BaseError,
 	Msg string

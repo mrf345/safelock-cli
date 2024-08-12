@@ -9,6 +9,7 @@ import (
 	myErrs "github.com/mrf345/safelock-cli/errors"
 )
 
+// get the password from pipe or ask the user to enter it
 func GetPassword(length int) (password string, err error) {
 	pipeInfo, _ := os.Stdin.Stat()
 

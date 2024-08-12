@@ -8,6 +8,7 @@ import (
 	myErrs "github.com/mrf345/safelock-cli/errors"
 )
 
+// check if path is a valid file path
 func IsValidFile(path string) (valid bool, err error) {
 	var info fs.FileInfo
 
