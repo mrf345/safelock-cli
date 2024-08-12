@@ -37,7 +37,7 @@ safelock-cli encrypt path_to_encrypt encrypted_file_path
 And to decrypt
 
 ```shell
-safelock-cli decrypt path_to_encrypt encrypted_file_path
+safelock-cli decrypt encrypted_file_path decrypted_files_path
 ```
 If you want it to run silently with no interaction
 
