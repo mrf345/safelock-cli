@@ -2,6 +2,7 @@ package myErrs
 
 import "fmt"
 
+// invalid password length entered
 type ErrInvalidPassword struct {
 	BaseError,
 	Len int

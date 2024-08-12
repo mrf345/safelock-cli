@@ -1,5 +1,6 @@
 package myErrs
 
+// passed context has ended or expired
 type ErrContextExpired struct {
 	BaseError
 }

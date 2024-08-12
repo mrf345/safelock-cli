@@ -2,6 +2,7 @@ package myErrs
 
 import "fmt"
 
+// path directory doesn't exist or invalid
 type ErrInvalidDirectory struct {
 	BaseError,
 	Path string
