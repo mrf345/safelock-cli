@@ -2,10 +2,6 @@ module github.com/mrf345/safelock-cli
 
 go 1.22
 
-require github.com/mrf345/safelock-cli/internal/utils v1.0.0
-
-replace github.com/mrf345/safelock-cli/internal/utils => ./internal/utils
-
 require (
 	github.com/GianlucaGuarini/go-observable v0.0.0-20171228155646-e39e699e0a00
 	github.com/inancgumus/screen v0.0.0-20190314163918-06e984b86ed3

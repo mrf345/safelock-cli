@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 
-	"github.com/mrf345/safelock-cli/internal/utils"
 	"github.com/mrf345/safelock-cli/safelock"
+	"github.com/mrf345/safelock-cli/utils"
 	"github.com/spf13/cobra"
 )
 

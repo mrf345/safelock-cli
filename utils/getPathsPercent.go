@@ -6,6 +6,7 @@ import (
 	"os"
 )
 
+// compare the input path with the output path total file size and calculates a percentage
 func GetPathsPercent(inputPath, outputPath string, start float64, portion float64) (percent string, err error) {
 	var inputInfo, outputInfo fs.FileInfo
 	var inputSize, outputSize int64

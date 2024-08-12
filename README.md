@@ -1,6 +1,6 @@
+<h2></h2>
 <h1>
 safelock-cli
-<!-- TODO: update badges after workflow -->
 <a href='https://github.com/mrf345/safelock-cli/actions/workflows/ci.yml'>
   <img src='https://github.com/mrf345/safelock-cli/actions/workflows/ci.yml/badge.svg'>
 </a>

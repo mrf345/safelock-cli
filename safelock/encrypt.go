@@ -16,7 +16,7 @@ import (
 
 	"github.com/mholt/archiver/v4"
 	myErrs "github.com/mrf345/safelock-cli/errors"
-	"github.com/mrf345/safelock-cli/internal/utils"
+	"github.com/mrf345/safelock-cli/utils"
 	"golang.org/x/crypto/pbkdf2"
 )
 

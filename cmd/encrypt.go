@@ -5,8 +5,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mrf345/safelock-cli/internal/utils"
 	"github.com/mrf345/safelock-cli/safelock"
+	"github.com/mrf345/safelock-cli/utils"
 )
 
 var encryptCmd = &cobra.Command{
