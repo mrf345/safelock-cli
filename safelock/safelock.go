@@ -45,8 +45,8 @@ type Safelock struct {
 	IterationCount int
 	// encryption key length (default: 64)
 	KeyLength int
-	// salt length used to generate the encryption key (default: 12)
-	SaltLength int
+	// nonce length used to generate the encryption key (default: 12)
+	NonceLength int
 	// encrypted/decrypted files buffer size (default: 4096)
 	BufferSize int
 	// encryption/decryption channels buffer size increasing/decreasing it might improve performance (default: 5)
@@ -71,7 +71,7 @@ func New() *Safelock {
 		IterationCount:    32,
 		KeyLength:         64,
 		BufferSize:        4096,
-		SaltLength:        12,
+		NonceLength:       12,
 		MinPasswordLength: 8,
 		ChannelSize:       5,
 		Hash:              sha512.New,
@@ -92,9 +92,9 @@ func NewSha256() *Safelock {
 }
 
 func (sl *Safelock) encryptionBufferSize() int {
-	return sl.BufferSize - (sl.SaltLength + 4)
+	return sl.BufferSize - (sl.NonceLength + 4)
 }
 
 func (sl *Safelock) decryptionBufferSize() int {
-	return sl.BufferSize + sl.SaltLength
+	return sl.BufferSize + sl.NonceLength
 }

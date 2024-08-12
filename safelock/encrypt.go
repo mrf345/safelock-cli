@@ -234,14 +234,14 @@ func (sl *Safelock) getEncryptedChunksChannel(pwd string, chunks <-chan *fileChu
 			var gcm cipher.AEAD
 			var err error
 
-			salt := make([]byte, sl.SaltLength)
+			nonce := make([]byte, sl.NonceLength)
 
-			if _, err = io.ReadFull(rand.Reader, salt); err != nil {
-				errs <- fmt.Errorf("failed to create random salt > %w", err)
+			if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
+				errs <- fmt.Errorf("failed to create random nonce > %w", err)
 				return
 			}
 
-			key := pbkdf2.Key([]byte(pwd), salt, sl.KeyLength, sl.IterationCount, sl.Hash)
+			key := pbkdf2.Key([]byte(pwd), nonce, sl.KeyLength, sl.IterationCount, sl.Hash)
 
 			if block, err = aes.NewCipher(key); err != nil {
 				errs <- fmt.Errorf("failed to create new cipher > %w", err)
@@ -253,7 +253,7 @@ func (sl *Safelock) getEncryptedChunksChannel(pwd string, chunks <-chan *fileChu
 				return
 			}
 
-			encrypted <- append(gcm.Seal(nil, salt, chunk.Chunk[:chunk.Sought], nil), salt...)
+			encrypted <- append(gcm.Seal(nil, nonce, chunk.Chunk[:chunk.Sought], nil), nonce...)
 		}
 
 		close(encrypted)

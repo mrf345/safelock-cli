@@ -147,9 +147,9 @@ func (sl *Safelock) getDecryptedChunksChannel(pwd string, chunks <-chan *fileChu
 			var err error
 			var data []byte
 
-			encrypted := chunk.Chunk[:chunk.Sought-(sl.SaltLength)]
-			salt := chunk.Chunk[chunk.Sought-(sl.SaltLength) : chunk.Sought]
-			key := pbkdf2.Key([]byte(pwd), salt, sl.KeyLength, sl.IterationCount, sl.Hash)
+			encrypted := chunk.Chunk[:chunk.Sought-(sl.NonceLength)]
+			nonce := chunk.Chunk[chunk.Sought-(sl.NonceLength) : chunk.Sought]
+			key := pbkdf2.Key([]byte(pwd), nonce, sl.KeyLength, sl.IterationCount, sl.Hash)
 
 			if block, err = aes.NewCipher(key); err != nil {
 				errs <- fmt.Errorf("failed to create new cipher > %w", err)
@@ -161,7 +161,7 @@ func (sl *Safelock) getDecryptedChunksChannel(pwd string, chunks <-chan *fileChu
 				return
 			}
 
-			if data, err = gcm.Open(nil, salt, encrypted, nil); err != nil {
+			if data, err = gcm.Open(nil, nonce, encrypted, nil); err != nil {
 				errs <- &myErrs.ErrFailedToAuthenticate{Msg: err.Error()}
 				return
 			}
