@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -19,14 +20,14 @@ func GetPassword(length int) (password string, err error) {
 		fmt.Printf("Enter password (minimum of %d chanters): ", length)
 	}
 
-	if password, err = bufio.NewReader(os.Stdin).ReadString('\n'); err != nil {
+	if password, err = bufio.NewReader(os.Stdin).ReadString('\n'); err != nil && err != io.EOF {
 		return
 	}
 
 	password = strings.TrimSpace(password)
 
 	if len(password) < length {
-		err = &myErrs.ErrInvalidPassword{Len: len(password)}
+		err = &myErrs.ErrInvalidPassword{Len: len(password), Need: length}
 	}
 
 	return
