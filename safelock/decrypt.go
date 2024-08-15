@@ -33,18 +33,18 @@ func (sl *Safelock) Decrypt(ctx context.Context, inputPath, outputPath, password
 
 	defer sl.StatusObs.
 		Off(EventStatusUpdate, sl.logStatus).
-		Trigger(EventStatusError, err)
+		Trigger(EventStatusEnd)
 
 	go func() {
 		var archiveFile *utils.RegFile
 
-		sl.updateStatus("Validating input and output", "0%")
+		sl.updateStatus("Validating input and output", 0.0)
 		if err = validateDecryptionPaths(inputPath, outputPath); err != nil {
 			errs <- fmt.Errorf("invalid decryption input/output paths > %w", err)
 			return
 		}
 
-		sl.updateStatus("Decrypting compressed archive file", "1%")
+		sl.updateStatus("Decrypting compressed archive file", 1.0)
 		if archiveFile, err = sl.decryptArchiveFileInChunks(inputPath, password); err != nil {
 			errs <- fmt.Errorf("failed to decrypt archive file > %w", err)
 			return
@@ -60,13 +60,13 @@ func (sl *Safelock) Decrypt(ctx context.Context, inputPath, outputPath, password
 			return
 		}
 
-		sl.updateStatus("Extracting compressed archive file", "70%")
+		sl.updateStatus("Extracting compressed archive file", 70.0)
 		if err = sl.extractArchiveFile(ctx, outputPath, archiveFile); err != nil {
 			errs <- fmt.Errorf("failed to extract archive file > %w", err)
 			return
 		}
 
-		sl.updateStatus(fmt.Sprintf("Decrypted into %s", outputPath), "100%")
+		sl.updateStatus(fmt.Sprintf("Decrypted into %s", outputPath), 100.0)
 		sl.StatusObs.Trigger(EventStatusEnd)
 		close(signals)
 		close(errs)
@@ -79,6 +79,7 @@ func (sl *Safelock) Decrypt(ctx context.Context, inputPath, outputPath, password
 			err = &myErrs.ErrContextExpired{}
 			return
 		case err = <-errs:
+			sl.StatusObs.Trigger(EventStatusError, err)
 			return
 		case <-signals:
 			_ = sl.Registry.RemoveAll()

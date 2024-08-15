@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 )
@@ -16,7 +15,7 @@ type ChunkPercentCalculator struct {
 }
 
 // calculate the percent of file chunks
-func (c *ChunkPercentCalculator) GetPercent() (percent string, err error) {
+func (c *ChunkPercentCalculator) GetPercent() (percent float64, err error) {
 	var stat fs.FileInfo
 
 	if stat, err = c.File.Stat(); err != nil {
@@ -25,8 +24,7 @@ func (c *ChunkPercentCalculator) GetPercent() (percent string, err error) {
 
 	c.counter += 1
 	total := float64(int(stat.Size()) / c.ChunkSize)
-	total = float64(c.counter) / total * c.Portion
-	percent = fmt.Sprintf("%.2f%%", c.Start+total)
+	percent = c.Start + (float64(c.counter) / total * c.Portion)
 
 	return
 }
