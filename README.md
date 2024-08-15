@@ -39,7 +39,8 @@ And to decrypt
 ```shell
 safelock-cli decrypt encrypted_file_path decrypted_files_path
 ```
-If you want it to run silently with no interaction
+> [!NOTE]
+> If you want it to run silently with no interaction
 
 ```shell
 echo "password123456" | safelock-cli encrypt path_to_encrypt encrypted_file_path --quiet
@@ -76,7 +77,7 @@ echo "password123456" | safelock-cli encrypt path_to_encrypt encrypted_file_path
 
 ### Performance
 
-With the default settings it should be **twice** as fast as `gpgtar`
+With the default settings it should be about **twice** as fast as `gpgtar`
 
 ```shell
 > du -hs testing/
@@ -88,17 +89,19 @@ user	0m41.148s
 sys	0m7.943s
 
 > time echo "testing123456" | safelock-cli encrypt testing/ testing.sla --quiet
-real	0m22.902s
-user	0m29.171s
-sys	0m10.868s
+real	0m20.697s
+user	0m25.355s
+sys	0m9.647s
 ```
-You can get faster performance using the `--sha256` flag (considered less secure)
+
+> [!TIP]
+> You can get even faster performance using the `--sha256` flag (less secure)
 
 ```shell
 > time echo "testing123456" | safelock-cli encrypt testing/ testing.sla --quiet --sha256
-real	0m18.843s
-user	0m20.619s
-sys	0m10.901s
+real	0m16.043s
+user	0m17.550s
+sys	0m8.707s
 ```
 
 And no major file size difference
