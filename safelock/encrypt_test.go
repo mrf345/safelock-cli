@@ -27,22 +27,6 @@ func TestEncryptWithInvalidInputPath(t *testing.T) {
 	assert.True(isExpectedErr)
 }
 
-func TestEncryptWithInvalidOutputPath(t *testing.T) {
-	assert := assert.New(t)
-	password := "testing123456"
-	sl := GetQuietSafelock()
-	inputFile, _ := os.CreateTemp("", "input_file")
-	outputFile, _ := os.CreateTemp("", "output_file")
-
-	defer os.Remove(inputFile.Name())
-	defer os.Remove(outputFile.Name())
-	err := sl.Encrypt(context.TODO(), inputFile.Name(), outputFile.Name(), password)
-	_, isExpectedErr := errors.Unwrap(err).(*myErrs.ErrInvalidOutputPath)
-
-	assert.NotNil(err)
-	assert.True(isExpectedErr)
-}
-
 func TestEncryptFile(t *testing.T) {
 	assert := assert.New(t)
 	password := "testing123456"

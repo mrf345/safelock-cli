@@ -1,13 +1,12 @@
 package utils
 
 import (
-	"fmt"
 	"io/fs"
 	"os"
 )
 
 // compare the input path with the output path total file size and calculates a percentage
-func GetPathsPercent(inputPath, outputPath string, start float64, portion float64) (percent string, err error) {
+func GetPathsPercent(inputPath, outputPath string, start float64, portion float64) (percent float64, err error) {
 	var inputInfo, outputInfo fs.FileInfo
 	var inputSize, outputSize int64
 
@@ -35,8 +34,7 @@ func GetPathsPercent(inputPath, outputPath string, start float64, portion float6
 		outputSize = outputInfo.Size()
 	}
 
-	total := start + (float64(outputSize) / float64(inputSize) * portion)
-	percent = fmt.Sprintf("%.2f%%", total)
+	percent = start + (float64(outputSize) / float64(inputSize) * portion)
 
 	return
 }
