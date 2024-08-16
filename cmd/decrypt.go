@@ -10,8 +10,8 @@ import (
 
 var decryptCmd = &cobra.Command{
 	Use:   "decrypt",
-	Short: "Decrypt an encrypted file",
-	Long:  "Decrypt an encrypted file",
+	Short: "decrypt [encrypted file path] [directory path]",
+	Long:  "decrypt [encrypted file path] [directory path]",
 	Run: func(cmd *cobra.Command, args []string) {
 		var err error
 		var pwd string
