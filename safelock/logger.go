@@ -2,14 +2,17 @@ package safelock
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/inancgumus/screen"
 )
 
 func (sl *Safelock) log(msg string, params ...any) {
 	if !sl.Quiet {
-		screen.Clear()
-		screen.MoveTopLeft()
+		if runtime.GOOS != "windows" {
+			screen.Clear()
+			screen.MoveTopLeft()
+		}
 		fmt.Printf(msg, params...)
 	}
 }
