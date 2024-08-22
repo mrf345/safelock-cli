@@ -10,6 +10,7 @@ import (
 
 var useSha256 bool
 var beQuiet bool
+var tempDir string
 
 var rootCmd = &cobra.Command{
 	Use:   "safelock-cli",
@@ -30,4 +31,5 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&useSha256, "sha256", false, "use SHA256 (faster) instead of SHA512")
 	rootCmd.PersistentFlags().BoolVar(&beQuiet, "quiet", false, "disable output logs")
+	rootCmd.PersistentFlags().StringVar(&tempDir, "temp-dir", os.TempDir(), "directory for temporary files")
 }

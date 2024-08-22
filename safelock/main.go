@@ -8,12 +8,12 @@
 //
 //	func main() {
 //	  lock := safelock.New()
-//	  inputPath := "/home/testing/important"
+//	  inputPaths := []string{"/home/testing/important"}
 //	  outputPath := "/home/testing/encrypted.sla"
 //	  extractTo := "/home/testing"
 //	  password := "testing123456"
 //
-//	  // Encrypts `inputPath` with the default settings
+//	  // Encrypts `inputPaths` with the default settings
 //	  if err := lock.Encrypt(nil, inputPath, outputPath, password); err != nil {
 //	    panic(err)
 //	  }

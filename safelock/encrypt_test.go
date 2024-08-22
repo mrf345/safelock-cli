@@ -14,7 +14,7 @@ import (
 
 func TestEncryptWithInvalidInputPath(t *testing.T) {
 	assert := assert.New(t)
-	inputPath := "wrong_input.txt"
+	inputPath := []string{"wrong_input.txt"}
 	password := "testing123456"
 	sl := GetQuietSafelock()
 	outputFile, _ := os.CreateTemp("", "output_file")
@@ -37,13 +37,14 @@ func TestEncryptFile(t *testing.T) {
 	outputPath := filepath.Join(outputDir, "output_file.sla")
 	content := "Hello World!"
 	decryptedPath := filepath.Join(outputDir, filepath.Base(inputFile.Name()))
+	inputPaths := []string{inputFile.Name()}
 
 	defer os.Remove(inputFile.Name())
 	defer os.RemoveAll(outputDir)
 	_, _ = inputFile.WriteString(content)
 	inputFile.Close()
 
-	inErr := encSl.Encrypt(context.TODO(), inputFile.Name(), outputPath, password)
+	inErr := encSl.Encrypt(context.TODO(), inputPaths, outputPath, password)
 	outErr := decSl.Decrypt(context.TODO(), outputPath, outputDir, password)
 	reader, _ := os.Open(decryptedPath)
 	decrypted, _ := io.ReadAll(reader)
@@ -64,13 +65,14 @@ func TestEncryptFileWithSha256AndGzip(t *testing.T) {
 	outputDir, _ := os.MkdirTemp("", "output_dir")
 	outputPath := filepath.Join(outputDir, "output_file.sla")
 	decryptedPath := filepath.Join(outputDir, filepath.Base(inputFile.Name()))
+	inputPaths := []string{inputFile.Name()}
 
 	defer os.Remove(inputFile.Name())
 	defer os.RemoveAll(outputDir)
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
-	inErr := encSl.Encrypt(context.TODO(), inputFile.Name(), outputPath, password)
+	inErr := encSl.Encrypt(context.TODO(), inputPaths, outputPath, password)
 	outErr := decSl.Decrypt(context.TODO(), outputPath, outputDir, password)
 	reader, _ := os.Open(decryptedPath)
 	decrypted, _ := io.ReadAll(reader)
@@ -89,12 +91,13 @@ func TestEncryptFileWithTimeout(t *testing.T) {
 	inputFile, _ := os.CreateTemp("", "input_file")
 	outputDir, _ := os.MkdirTemp("", "output_dir")
 	outputPath := filepath.Join(outputDir, "output_file.sla")
+	inputPaths := []string{inputFile.Name()}
 
 	cancel()
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
-	err := sl.Encrypt(ctx, inputFile.Name(), outputPath, password)
+	err := sl.Encrypt(ctx, inputPaths, outputPath, password)
 	_, isExpectedErr := err.(*myErrs.ErrContextExpired)
 
 	assert.NotNil(err)

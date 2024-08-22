@@ -187,7 +187,12 @@ func (sl *Safelock) extractArchiveFile(ctx context.Context, outputPath string, a
 		return fmt.Errorf("cannot read archive file > %w", err)
 	}
 
-	go sl.updateArchiveFileStatus(statusCtx, archive.Name(), outputPath, "Extracting", 70.0)
+	go sl.updateArchiveFileStatus(
+		statusCtx,
+		[]string{archive.Name()},
+		outputPath,
+		"Extracting", 70.0,
+	)
 
 	if err = sl.Archival.Extract(ctx, reader, nil, fileHandler); err != nil {
 		return fmt.Errorf("cannot extract archive file > %w", err)

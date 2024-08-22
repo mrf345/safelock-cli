@@ -41,7 +41,8 @@ var encryptCmd = &cobra.Command{
 		}
 
 		sl.Quiet = beQuiet
-		inputPath, outputPath := args[0], args[1]
+		sl.Registry.TempDir = tempDir
+		inputPath, outputPath := []string{args[0]}, args[1]
 
 		if err = sl.Encrypt(context.TODO(), inputPath, outputPath, pwd); err != nil {
 			utils.PrintErrsAndExit(err.Error())

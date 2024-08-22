@@ -20,11 +20,11 @@ import (
 	"golang.org/x/crypto/pbkdf2"
 )
 
-// encrypts `inputPath` which can be either a file or directory and output into the `outputPath`
-// which must be a nonexisting file filepath.
+// encrypts `inputPaths` which can be either a slice of file or directory paths and outputs into the `outputPath`
+// which must be a nonexisting file path.
 //
 // NOTE: `ctx` context is optional you can pass `nil` and the method will handle it
-func (sl *Safelock) Encrypt(ctx context.Context, inputPath, outputPath, password string) (err error) {
+func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, outputPath, password string) (err error) {
 	errs := make(chan error)
 	signals := sl.getExitSignalsChannel()
 
@@ -45,7 +45,7 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPath, outputPath, password
 		var outputFile *os.File
 
 		sl.updateStatus("Validating input and output", 0.0)
-		if err = validateEncryptionPaths(inputPath, outputPath); err != nil {
+		if err = validateEncryptionPaths(inputPaths, outputPath); err != nil {
 			errs <- fmt.Errorf("invalid encryption input/output paths > %w", err)
 			return
 		}
@@ -56,7 +56,7 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPath, outputPath, password
 		}
 
 		sl.updateStatus("Creating compressed archive file", 1.0)
-		if archiveFile, err = sl.createArchiveFile(ctx, inputPath); err != nil {
+		if archiveFile, err = sl.createArchiveFile(ctx, inputPaths); err != nil {
 			errs <- fmt.Errorf("failed to create archive file > %w", err)
 			return
 		}
@@ -103,7 +103,8 @@ func (sl *Safelock) getExitSignalsChannel() chan os.Signal {
 	return signals
 }
 
-func validateEncryptionPaths(inputPath, outputPath string) (err error) {
+func validateEncryptionPaths(inputPath []string, outputPath string) (err error) {
+	for _, inputPath := range inputPath {
 	inputIsFile, inputErrFile := utils.IsValidFile(inputPath)
 	inputIsDir, inputErrDir := utils.IsValidDir(inputPath)
 
@@ -112,6 +113,7 @@ func validateEncryptionPaths(inputPath, outputPath string) (err error) {
 			return inputErrFile
 		} else {
 			return inputErrDir
+			}
 		}
 	}
 
@@ -122,13 +124,18 @@ func validateEncryptionPaths(inputPath, outputPath string) (err error) {
 	return
 }
 
-func (sl *Safelock) createArchiveFile(ctx context.Context, inputPath string) (file *utils.RegFile, err error) {
+func (sl *Safelock) createArchiveFile(ctx context.Context, inputPaths []string) (file *utils.RegFile, err error) {
 	var files []archiver.File
+	var filesMap = make(map[string]string)
+
+	for _, input := range inputPaths {
+		filesMap[input] = ""
+	}
 
 	statusCtx, cancelStatus := context.WithCancel(ctx)
 	defer cancelStatus()
 
-	if files, err = archiver.FilesFromDisk(nil, map[string]string{inputPath: ""}); err != nil {
+	if files, err = archiver.FilesFromDisk(nil, filesMap); err != nil {
 		err = fmt.Errorf("failed to list archive files > %w", err)
 		return
 	}
@@ -143,7 +150,7 @@ func (sl *Safelock) createArchiveFile(ctx context.Context, inputPath string) (fi
 		Archival:    sl.Archival,
 	}
 
-	go sl.updateArchiveFileStatus(statusCtx, inputPath, file.Name(), "Creating", 1.0)
+	go sl.updateArchiveFileStatus(statusCtx, inputPaths, file.Name(), "Creating", 1.0)
 
 	if err = format.Archive(ctx, file, files); err != nil {
 		err = fmt.Errorf("failed to create archive file > %w", err)
@@ -155,13 +162,19 @@ func (sl *Safelock) createArchiveFile(ctx context.Context, inputPath string) (fi
 	return
 }
 
-func (sl *Safelock) updateArchiveFileStatus(ctx context.Context, inputPath, archivePath, act string, start float64) {
+func (sl *Safelock) updateArchiveFileStatus(
+	ctx context.Context,
+	inputPaths []string,
+	archivePath,
+	act string,
+	start float64,
+) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			if p, err := utils.GetPathsPercent(inputPath, archivePath, start, 30.0); err != nil {
+			if p, err := utils.GetPathsPercent(inputPaths, archivePath, start, 30.0); err != nil {
 				return
 			} else {
 				sl.updateStatus(fmt.Sprintf("%s compressed archive file", act), p)
