@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"hash"
+	"os"
 
 	"github.com/GianlucaGuarini/go-observable"
 	"github.com/mholt/archiver/v4"
@@ -45,15 +46,16 @@ func New() *Safelock {
 		Archival:          archiver.Tar{},
 		IterationCount:    32,
 		KeyLength:         64,
-		BufferSize:        4096,
+		BufferSize:        64 * 1024,
 		NonceLength:       12,
 		MinPasswordLength: 8,
-		ChannelSize:       5,
+		ChannelSize:       30,
 		Hash:              sha512.New,
 		StatusObs:         observable.New(),
 		Registry: &utils.FilesRegistry{
 			PrefixText: "SF_temp",
 			Paths:      make(map[string]struct{}),
+			TempDir:    os.TempDir(),
 		},
 	}
 }

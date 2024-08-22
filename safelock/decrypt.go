@@ -67,7 +67,6 @@ func (sl *Safelock) Decrypt(ctx context.Context, inputPath, outputPath, password
 		}
 
 		sl.updateStatus(fmt.Sprintf("Decrypted into %s", outputPath), 100.0)
-		sl.StatusObs.Trigger(EventStatusEnd)
 		close(signals)
 		close(errs)
 	}()
@@ -108,7 +107,7 @@ func (sl *Safelock) decryptArchiveFileInChunks(inputPath, password string) (outp
 		return
 	}
 
-	if outputFile, err = sl.Registry.NewFile("", "d_output_temp"); err != nil {
+	if outputFile, err = sl.Registry.NewFile("d_output_temp"); err != nil {
 		err = fmt.Errorf("failed to create temporary file > %w", err)
 		return
 	}

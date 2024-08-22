@@ -76,7 +76,6 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, outputPath
 
 		unRegister()
 		sl.updateStatus(fmt.Sprintf("Encrypted %s", outputPath), 100.0)
-		sl.StatusObs.Trigger(EventStatusEnd)
 		close(signals)
 		close(errs)
 	}()
@@ -105,14 +104,14 @@ func (sl *Safelock) getExitSignalsChannel() chan os.Signal {
 
 func validateEncryptionPaths(inputPath []string, outputPath string) (err error) {
 	for _, inputPath := range inputPath {
-	inputIsFile, inputErrFile := utils.IsValidFile(inputPath)
-	inputIsDir, inputErrDir := utils.IsValidDir(inputPath)
+		inputIsFile, inputErrFile := utils.IsValidFile(inputPath)
+		inputIsDir, inputErrDir := utils.IsValidDir(inputPath)
 
-	if !inputIsFile && !inputIsDir {
-		if inputErrFile != nil {
-			return inputErrFile
-		} else {
-			return inputErrDir
+		if !inputIsFile && !inputIsDir {
+			if inputErrFile != nil {
+				return inputErrFile
+			} else {
+				return inputErrDir
 			}
 		}
 	}
@@ -140,7 +139,7 @@ func (sl *Safelock) createArchiveFile(ctx context.Context, inputPaths []string) 
 		return
 	}
 
-	if file, err = sl.Registry.NewFile("", "e_output_temp"); err != nil {
+	if file, err = sl.Registry.NewFile("e_output_temp"); err != nil {
 		err = fmt.Errorf("failed to create temporary file > %w", err)
 		return
 	}

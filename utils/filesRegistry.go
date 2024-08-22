@@ -14,6 +14,7 @@ type FilesRegistry struct {
 	Disable    bool
 	PrefixText string
 	Paths      map[string]struct{}
+	TempDir    string
 }
 
 // removable extended [os.File] type for [utils.FilesRegistry]
@@ -28,10 +29,10 @@ func (fs *FilesRegistry) Prefix(name string) string {
 }
 
 // create a new temporary file
-func (fs *FilesRegistry) NewFile(dir, name string) (tempFile *RegFile, err error) {
+func (fs *FilesRegistry) NewFile(name string) (tempFile *RegFile, err error) {
 	var file *os.File
 
-	if file, err = os.CreateTemp(dir, fs.Prefix(name)); err != nil {
+	if file, err = os.CreateTemp(fs.TempDir, fs.Prefix(name)); err != nil {
 		return
 	}
 
