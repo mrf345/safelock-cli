@@ -58,12 +58,12 @@ echo "password123456" | safelock-cli encrypt path_to_encrypt encrypted_file_path
 
   func main() {
     lock := safelock.New()
-    inputPath := "/home/testing/important"
+    inputPaths := []string{"/home/testing/important"}
     outputPath := "/home/testing/encrypted.sla"
     password := "testing123456"
 
-    // Encrypts `inputPath` with the default settings
-    if err := lock.Encrypt(nil, inputPath, outputPath, password); err != nil {
+    // Encrypts `inputPaths` with the default settings
+    if err := lock.Encrypt(nil, inputPaths, outputPath, password); err != nil {
       panic(err)
     }
 
@@ -77,31 +77,32 @@ echo "password123456" | safelock-cli encrypt path_to_encrypt encrypted_file_path
 
 ### Performance
 
-With the default settings it should be about **twice** as fast as `gpgtar`
+With the default settings it should be about **three times** faster than `gpgtar`
 
 ```shell
 > du -hs testing/
 1.2G testing/
 
-> time gpgtar --encrypt --output testing.gpg -r user testing/
-real	0m42.710s
-user	0m41.148s
-sys	0m7.943s
+> time gpgtar -e -o testing.gpg -c --yes --batch --gpg-args "--passphrase testing123456" testing/
+real	0m40.141s
+user	0m33.933s
+sys	0m6.930s
+
 
 > time echo "testing123456" | safelock-cli encrypt testing/ testing.sla --quiet
-real	0m20.697s
-user	0m25.355s
-sys	0m9.647s
+real	0m8.403s
+user	0m10.790s
+sys	0m4.832s
 ```
 
 > [!TIP]
-> You can get even faster performance using the `--sha256` flag (less secure)
+> You can get slightly better performance using the `--sha256` flag (less secure)
 
 ```shell
 > time echo "testing123456" | safelock-cli encrypt testing/ testing.sla --quiet --sha256
-real	0m16.043s
-user	0m17.550s
-sys	0m8.707s
+real	0m8.188s
+user	0m10.441s
+sys	0m4.709s
 ```
 
 And no major file size difference

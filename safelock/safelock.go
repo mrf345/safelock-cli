@@ -23,9 +23,9 @@ type Safelock struct {
 	KeyLength int
 	// nonce length used to generate the encryption key (default: 12)
 	NonceLength int
-	// encrypted/decrypted files buffer size (default: 4096)
+	// encrypted/decrypted files buffer size (default: 64 * 1024)
 	BufferSize int
-	// encryption/decryption channels buffer size increasing/decreasing it might improve performance (default: 5)
+	// encryption/decryption channels buffer size increasing/decreasing it might improve performance (default: 30)
 	ChannelSize int
 	// minimum password length allowed (default: 8)
 	MinPasswordLength int
