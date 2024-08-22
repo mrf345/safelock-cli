@@ -40,6 +40,7 @@ var decryptCmd = &cobra.Command{
 		}
 
 		sl.Quiet = beQuiet
+		sl.Registry.TempDir = tempDir
 		inputPath, outputPath := args[0], args[1]
 
 		if err = sl.Decrypt(context.TODO(), inputPath, outputPath, pwd); err != nil {

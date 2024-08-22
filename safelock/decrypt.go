@@ -67,7 +67,6 @@ func (sl *Safelock) Decrypt(ctx context.Context, inputPath, outputPath, password
 		}
 
 		sl.updateStatus(fmt.Sprintf("Decrypted into %s", outputPath), 100.0)
-		sl.StatusObs.Trigger(EventStatusEnd)
 		close(signals)
 		close(errs)
 	}()
@@ -108,7 +107,7 @@ func (sl *Safelock) decryptArchiveFileInChunks(inputPath, password string) (outp
 		return
 	}
 
-	if outputFile, err = sl.Registry.NewFile("", "d_output_temp"); err != nil {
+	if outputFile, err = sl.Registry.NewFile("d_output_temp"); err != nil {
 		err = fmt.Errorf("failed to create temporary file > %w", err)
 		return
 	}
@@ -187,7 +186,12 @@ func (sl *Safelock) extractArchiveFile(ctx context.Context, outputPath string, a
 		return fmt.Errorf("cannot read archive file > %w", err)
 	}
 
-	go sl.updateArchiveFileStatus(statusCtx, archive.Name(), outputPath, "Extracting", 70.0)
+	go sl.updateArchiveFileStatus(
+		statusCtx,
+		[]string{archive.Name()},
+		outputPath,
+		"Extracting", 70.0,
+	)
 
 	if err = sl.Archival.Extract(ctx, reader, nil, fileHandler); err != nil {
 		return fmt.Errorf("cannot extract archive file > %w", err)

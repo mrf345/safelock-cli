@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"hash"
+	"os"
 
 	"github.com/GianlucaGuarini/go-observable"
 	"github.com/mholt/archiver/v4"
@@ -22,9 +23,9 @@ type Safelock struct {
 	KeyLength int
 	// nonce length used to generate the encryption key (default: 12)
 	NonceLength int
-	// encrypted/decrypted files buffer size (default: 4096)
+	// encrypted/decrypted files buffer size (default: 64 * 1024)
 	BufferSize int
-	// encryption/decryption channels buffer size increasing/decreasing it might improve performance (default: 5)
+	// encryption/decryption channels buffer size increasing/decreasing it might improve performance (default: 30)
 	ChannelSize int
 	// minimum password length allowed (default: 8)
 	MinPasswordLength int
@@ -45,15 +46,16 @@ func New() *Safelock {
 		Archival:          archiver.Tar{},
 		IterationCount:    32,
 		KeyLength:         64,
-		BufferSize:        4096,
+		BufferSize:        64 * 1024,
 		NonceLength:       12,
 		MinPasswordLength: 8,
-		ChannelSize:       5,
+		ChannelSize:       30,
 		Hash:              sha512.New,
 		StatusObs:         observable.New(),
 		Registry: &utils.FilesRegistry{
 			PrefixText: "SF_temp",
 			Paths:      make(map[string]struct{}),
+			TempDir:    os.TempDir(),
 		},
 	}
 }

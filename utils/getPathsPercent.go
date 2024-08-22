@@ -5,25 +5,33 @@ import (
 	"os"
 )
 
-// compare the input path with the output path total file size and calculates a percentage
-func GetPathsPercent(inputPath, outputPath string, start float64, portion float64) (percent float64, err error) {
+// compare the input paths with the output path total file size and calculates a percentage
+func GetPathsPercent(
+	inputPaths []string,
+	outputPath string,
+	start float64,
+	portion float64,
+) (percent float64, err error) {
 	var inputInfo, outputInfo fs.FileInfo
-	var inputSize, outputSize int64
-
-	if inputInfo, err = os.Stat(inputPath); err != nil {
-		return
-	}
+	var inputSize, outputSize = int64(0), int64(0)
 
 	if outputInfo, err = os.Stat(outputPath); err != nil {
 		return
 	}
 
-	if inputInfo.IsDir() {
-		if inputSize, err = GetDirSize(inputPath); err != nil {
+	for _, inputPath := range inputPaths {
+		if inputInfo, err = os.Stat(inputPath); err != nil {
 			return
 		}
-	} else {
-		inputSize = inputInfo.Size()
+
+		if inputInfo.IsDir() {
+			if inputSize, err = GetDirSize(inputPath); err != nil {
+				return
+			}
+		} else {
+			inputSize += inputInfo.Size()
+		}
+
 	}
 
 	if outputInfo.IsDir() {
@@ -31,7 +39,7 @@ func GetPathsPercent(inputPath, outputPath string, start float64, portion float6
 			return
 		}
 	} else {
-		outputSize = outputInfo.Size()
+		outputSize += outputInfo.Size()
 	}
 
 	percent = start + (float64(outputSize) / float64(inputSize) * portion)

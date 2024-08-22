@@ -54,12 +54,13 @@ func TestDecryptFileWithTimeout(t *testing.T) {
 	inputFile, _ := os.CreateTemp("", "input_file")
 	outputDirPath, _ := os.MkdirTemp("", "output_dir")
 	outputPath := filepath.Join(outputDirPath, "output_file.sla")
+	inputPaths := []string{inputFile.Name()}
 
 	cancel()
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
-	encErr := sl.Encrypt(context.TODO(), inputFile.Name(), outputPath, password)
+	encErr := sl.Encrypt(context.TODO(), inputPaths, outputPath, password)
 	decErr := sl.Decrypt(ctx, inputFile.Name(), outputPath, password)
 	_, isExpectedErr := decErr.(*myErrs.ErrContextExpired)
 
@@ -80,11 +81,12 @@ func TestDecryptFileWithWrongPassword(t *testing.T) {
 	inputFile, _ := os.CreateTemp("", "input_file")
 	outputDirPath, _ := os.MkdirTemp("", "output_dir")
 	outputPath := filepath.Join(outputDirPath, "output_file.sla")
+	inputPaths := []string{inputFile.Name()}
 
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
-	encErr := sl.Encrypt(context.TODO(), inputFile.Name(), outputPath, password)
+	encErr := sl.Encrypt(context.TODO(), inputPaths, outputPath, password)
 	decErr := sl.Decrypt(context.TODO(), outputPath, outputDirPath, "wrong")
 	_, isExpectedErr := errors.Unwrap(decErr).(*myErrs.ErrFailedToAuthenticate)
 

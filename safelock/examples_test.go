@@ -22,10 +22,11 @@ func ExampleSafelock_Encrypt() {
 
 	// Prepare files to encrypt (should ignore this)
 	inputFilePath, encryptedFilePath, clean := getUnencryptedFilePaths()
+	inputPaths := []string{inputFilePath}
 	defer clean()
 
-	// Encrypt `inputFilePath` with the assigned settings
-	if err := lock.Encrypt(ctx, inputFilePath, encryptedFilePath, password); err != nil {
+	// Encrypt `inputPaths` with the assigned settings
+	if err := lock.Encrypt(ctx, inputPaths, encryptedFilePath, password); err != nil {
 		fmt.Println("failed!")
 	}
 
@@ -76,9 +77,9 @@ func getEncryptedFilePath() (encryptedFilePath string, clean func()) {
 	ctx := context.Background()
 	file, _ := os.CreateTemp("", "test_input")
 	dirPath, _ := os.MkdirTemp("", "test_output")
-	filePath := file.Name()
+	filePaths := []string{file.Name()}
 	encryptedFilePath = filepath.Join(dirPath, "encrypted.sla")
-	_ = lock.Encrypt(ctx, filePath, encryptedFilePath, password)
+	_ = lock.Encrypt(ctx, filePaths, encryptedFilePath, password)
 	clean = func() {
 		os.Remove(file.Name())
 		os.RemoveAll(dirPath)
