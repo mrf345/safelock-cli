@@ -18,5 +18,5 @@ func (sl *Safelock) log(msg string, params ...any) {
 }
 
 func (sl *Safelock) logStatus(status string, percent float64) {
-	sl.log("%s (%.2f)\n", status, percent)
+	sl.log("%s (%.2f%%)\n", status, percent)
 }
