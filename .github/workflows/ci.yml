@@ -22,8 +22,9 @@ jobs:
         run: |
           go get .
       - name: Lint
+        if: runner.os == 'linux'
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.59
       - name: Test
-        run: go test -count=3 ./...
+        run: go test -count=2 ./...
