@@ -29,10 +29,6 @@ type EncryptionConfig struct {
 	GcmBufferSize int
 }
 
-func (ec *EncryptionConfig) getMinPasswordLength() int {
-	return ec.MinPasswordLength / 2
-}
-
 func (ec *EncryptionConfig) getHeaderSize(fileSize int) int {
 	if ec.HeaderRatio > fileSize/100 {
 		return ec.HeaderRatio
