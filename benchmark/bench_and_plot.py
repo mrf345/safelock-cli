@@ -3,7 +3,7 @@ import json
 import random
 
 import matplotlib.pyplot as plt
-from matplotlib.colors import XKCD_COLORS as colors_map
+from matplotlib.colors import XKCD_COLORS as plot_colors
 
 safelock_cmd = "safelock-cli"
 pwd = "123456789"
@@ -46,7 +46,7 @@ def decrypt():
     if err:
         exit(err)
 
-def get_label(i):
+def get_label(i, clean=False):
     label = i['command']
 
     if 'gpg' in label:
@@ -58,39 +58,43 @@ def get_label(i):
     else:
         label = 'safelock'
 
+    if clean:
+        return label
+
     return f"{label}\n{i['median']:.3f}s"
 
-os.chdir(os.path.expanduser("~"))
-encrypt()
-decrypt()
+# os.chdir(os.path.expanduser("~"))
+# encrypt()
+# decrypt()
 os.chdir(root)
 
 with open("encryption.json") as f:
     data = sorted(json.load(f)['results'], key=lambda i: i['median'])
-    commands = [get_label(i) for i in data]
+    labels = [get_label(i) for i in data]
     scores = [i['median'] for i in data]
-
-colors = [random.choice(list(colors_map.values())) for _ in scores]
+    colors_map = {get_label(i, 1): random.choice(list(plot_colors.values())) for i in data}
+    colors = [colors_map[get_label(i, 1)] for i in data]
 
 plt.margins(3.5)
 
 fig, ax = plt.subplots()
 ax.set_title('Encryption Time')
 ax.set_xlabel(measure)
-ax.barh(commands, scores, bar_width, color=colors)
+ax.barh(labels, scores, bar_width, color=colors)
 fig.set_size_inches(w=figure_width, h=figure_height)
 fig.tight_layout()
 fig.savefig("encryption-time.webp", transparent=True, format="webp")
 
 with open("decryption.json") as f:
     data = sorted(json.load(f)['results'], key=lambda i: i['median'])
-    commands = [get_label(i) for i in data]
+    labels = [get_label(i) for i in data]
     decryption = [i['median'] for i in data]
+    colors = [colors_map[get_label(i, 1)] for i in data]
 
 fig, ax = plt.subplots()
 ax.set_title('Decryption Time')
 ax.set_xlabel(measure)
-ax.barh(commands, decryption, bar_width, color=colors)
+ax.barh(labels, decryption, bar_width, color=colors)
 fig.set_size_inches(w=figure_width, h=figure_height)
 fig.tight_layout()
 fig.savefig("decryption-time.webp", transparent=True, format="webp")
