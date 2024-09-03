@@ -1,12 +1,7 @@
 package safelock
 
 import (
-	"bytes"
 	"context"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -15,16 +10,15 @@ import (
 	"time"
 
 	"github.com/mholt/archiver/v4"
-	myErrs "github.com/mrf345/safelock-cli/errors"
+	slErrs "github.com/mrf345/safelock-cli/slErrs"
 	"github.com/mrf345/safelock-cli/utils"
-	"golang.org/x/crypto/pbkdf2"
 )
 
-// encrypts `inputPaths` which can be either a slice of file or directory paths and outputs into the `outputPath`
-// which must be a nonexisting file path.
+// encrypts `inputPaths` which can be either a slice of file or directory paths and then
+// outputs into an object `output` that implements [io.Writer] such as [io.File]
 //
 // NOTE: `ctx` context is optional you can pass `nil` and the method will handle it
-func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, outputPath, password string) (err error) {
+func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.Writer, password string) (err error) {
 	errs := make(chan error)
 	signals := sl.getExitSignalsChannel()
 
@@ -33,49 +27,41 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, outputPath
 	}
 
 	sl.StatusObs.
-		On(EventStatusUpdate, sl.logStatus).
-		Trigger(EventStatusStart)
+		On(StatusUpdate.Str(), sl.logStatus).
+		Trigger(StatusStart.Str())
 
 	defer sl.StatusObs.
-		Off(EventStatusUpdate, sl.logStatus).
-		Trigger(EventStatusEnd)
+		Off(StatusUpdate.Str(), sl.logStatus).
+		Trigger(StatusEnd.Str())
 
 	go func() {
-		var archiveFile *utils.RegFile
-		var outputFile *os.File
+		var calc *utils.PercentCalculator
 
-		sl.updateStatus("Validating input and output", 0.0)
-		if err = validateEncryptionPaths(inputPaths, outputPath); err != nil {
-			errs <- fmt.Errorf("invalid encryption input/output paths > %w", err)
+		if err = sl.validateEncryptionInputs(inputPaths, password); err != nil {
+			errs <- fmt.Errorf("invalid encryption input > %w", err)
 			return
 		}
 
-		if len(password) < sl.MinPasswordLength {
-			errs <- &myErrs.ErrInvalidPassword{Len: len(password), Need: sl.MinPasswordLength}
+		if calc, err = utils.NewPathsCalculator(inputPaths, 20.0); err != nil {
+			errs <- fmt.Errorf("failed to read input paths > %w", err)
 			return
 		}
 
-		sl.updateStatus("Creating compressed archive file", 1.0)
-		if archiveFile, err = sl.createArchiveFile(ctx, inputPaths); err != nil {
-			errs <- fmt.Errorf("failed to create archive file > %w", err)
+		ctx, cancel := context.WithCancel(ctx)
+		rw := newWriter(password, output, cancel, calc, sl.EncryptionConfig, errs)
+		rw.asyncGcm = newAsyncGcm(password, sl.EncryptionConfig, errs)
+
+		if err = sl.encryptFiles(ctx, inputPaths, rw, calc); err != nil {
+			errs <- fmt.Errorf("failed to create encrypted archive file > %w", err)
 			return
 		}
 
-		if outputFile, err = os.Create(outputPath); err != nil {
-			errs <- fmt.Errorf("filed to create output file > %w", err)
+		if err = rw.WriteHeader(); err != nil {
+			errs <- fmt.Errorf("failed to create encrypted file header > %w", err)
 			return
 		}
 
-		unRegister := sl.Registry.Register(outputFile)
-
-		sl.updateStatus("Encrypting compressed archive file", 30.0)
-		if err = sl.encryptAndWriteInChunks(password, archiveFile.File, outputFile); err != nil {
-			errs <- fmt.Errorf("failed to encrypt file > %w", err)
-			return
-		}
-
-		unRegister()
-		sl.updateStatus(fmt.Sprintf("Encrypted %s", outputPath), 100.0)
+		sl.updateStatus("All set and encrypted!", 100.0)
 		close(signals)
 		close(errs)
 	}()
@@ -83,14 +69,12 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, outputPath
 	for {
 		select {
 		case <-ctx.Done():
-			_ = sl.Registry.RemoveAll()
-			err = &myErrs.ErrContextExpired{}
+			err = context.DeadlineExceeded
 			return
 		case err = <-errs:
-			sl.StatusObs.Trigger(EventStatusError, err)
+			sl.StatusObs.Trigger(StatusError.Str(), err)
 			return
 		case <-signals:
-			_ = sl.Registry.RemoveAll()
 			return
 		}
 	}
@@ -102,199 +86,54 @@ func (sl *Safelock) getExitSignalsChannel() chan os.Signal {
 	return signals
 }
 
-func validateEncryptionPaths(inputPath []string, outputPath string) (err error) {
-	for _, inputPath := range inputPath {
-		inputIsFile, inputErrFile := utils.IsValidFile(inputPath)
-		inputIsDir, inputErrDir := utils.IsValidDir(inputPath)
+func (sl *Safelock) validateEncryptionInputs(inputPaths []string, pwd string) (err error) {
+	sl.updateStatus("Validating inputs", 0.0)
 
-		if !inputIsFile && !inputIsDir {
-			if inputErrFile != nil {
-				return inputErrFile
-			} else {
-				return inputErrDir
-			}
+	for _, path := range inputPaths {
+		if _, err = os.Stat(path); err != nil {
+			return &slErrs.ErrInvalidInputPath{Path: path, Err: err}
 		}
 	}
 
-	if _, err = os.Stat(outputPath); errors.Is(err, os.ErrNotExist) {
-		err = nil
+	if len(pwd) < sl.MinPasswordLength {
+		return &slErrs.ErrInvalidPassword{Len: len(pwd), Need: sl.MinPasswordLength}
 	}
 
 	return
 }
 
-func (sl *Safelock) createArchiveFile(ctx context.Context, inputPaths []string) (file *utils.RegFile, err error) {
+func (sl *Safelock) encryptFiles(
+	ctx context.Context,
+	inputPaths []string,
+	slWriter *safelockWriter,
+	calc *utils.PercentCalculator,
+) (err error) {
 	var files []archiver.File
-	var filesMap = make(map[string]string)
+	var filesMap = make(map[string]string, len(inputPaths))
 
-	for _, input := range inputPaths {
-		filesMap[input] = ""
+	for _, path := range inputPaths {
+		filesMap[path] = ""
 	}
-
-	statusCtx, cancelStatus := context.WithCancel(ctx)
-	defer cancelStatus()
 
 	if files, err = archiver.FilesFromDisk(nil, filesMap); err != nil {
 		err = fmt.Errorf("failed to list archive files > %w", err)
 		return
 	}
 
-	if file, err = sl.Registry.NewFile("e_output_temp"); err != nil {
-		err = fmt.Errorf("failed to create temporary file > %w", err)
-		return
-	}
+	go sl.updateProgressStatus(ctx, "Encrypting", calc)
+	defer slWriter.cancel()
 
-	format := archiver.CompressedArchive{
-		Compression: sl.Compression,
-		Archival:    sl.Archival,
-	}
-
-	go sl.updateArchiveFileStatus(statusCtx, inputPaths, file.Name(), "Creating", 1.0)
-
-	if err = format.Archive(ctx, file, files); err != nil {
-		err = fmt.Errorf("failed to create archive file > %w", err)
-		return
-	}
-
-	_, err = file.Seek(0, io.SeekStart)
-
-	return
+	return sl.archive(ctx, slWriter, files)
 }
 
-func (sl *Safelock) updateArchiveFileStatus(
-	ctx context.Context,
-	inputPaths []string,
-	archivePath,
-	act string,
-	start float64,
-) {
+func (sl *Safelock) updateProgressStatus(ctx context.Context, act string, calc *utils.PercentCalculator) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		default:
-			if p, err := utils.GetPathsPercent(inputPaths, archivePath, start, 30.0); err != nil {
-				return
-			} else {
-				sl.updateStatus(fmt.Sprintf("%s compressed archive file", act), p)
-				time.Sleep(time.Second / 4)
-			}
+			sl.updateStatus(fmt.Sprintf("%s files", act), calc.GetPercent())
+			time.Sleep(time.Second / 5)
 		}
 	}
-}
-
-func (sl *Safelock) encryptAndWriteInChunks(pwd string, inputFile *os.File, outputFile *os.File) (err error) {
-	for err = range sl.runFilesEncryptionPipe(inputFile, outputFile, pwd) {
-		if err != nil {
-			os.Remove(outputFile.Name())
-			return
-		}
-	}
-	return
-}
-
-func (sl *Safelock) runFilesEncryptionPipe(inputFile *os.File, outputFile *os.File, pwd string) <-chan error {
-	errs := make(chan error)
-
-	go func() {
-		size := sl.encryptionBufferSize()
-		calc := &utils.ChunkPercentCalculator{File: inputFile, ChunkSize: size, Start: 30.0, Portion: 70.0}
-		chunks := sl.getFileChunksChannel(inputFile, size, errs)
-		encrypted := sl.getEncryptedChunksChannel(pwd, chunks, errs)
-		sl.writeChunks(outputFile, "Encrypting", calc, encrypted, errs)
-	}()
-
-	return errs
-}
-
-func (sl *Safelock) getFileChunksChannel(file *os.File, chunkSize int, errs chan error) <-chan *fileChunk {
-	chunks := make(chan *fileChunk, sl.ChannelSize)
-
-	go func() {
-		for {
-			var sought int
-			var err error
-
-			chunk := make([]byte, chunkSize)
-
-			if sought, err = file.Read(chunk); err != nil && err != io.EOF {
-				errs <- fmt.Errorf("failed to read input file > %w", err)
-				return
-			} else if err == io.EOF {
-				break
-			}
-
-			chunks <- &fileChunk{
-				Chunk:  chunk,
-				Sought: sought,
-			}
-		}
-
-		close(chunks)
-	}()
-
-	return chunks
-}
-
-func (sl *Safelock) getEncryptedChunksChannel(pwd string, chunks <-chan *fileChunk, errs chan error) <-chan []byte {
-	encrypted := make(chan []byte, sl.ChannelSize)
-
-	go func() {
-		for chunk := range chunks {
-			var block cipher.Block
-			var gcm cipher.AEAD
-			var err error
-
-			nonce := make([]byte, sl.NonceLength)
-
-			if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-				errs <- fmt.Errorf("failed to create random nonce > %w", err)
-				return
-			}
-
-			key := pbkdf2.Key([]byte(pwd), nonce, sl.KeyLength, sl.IterationCount, sl.Hash)
-
-			if block, err = aes.NewCipher(key); err != nil {
-				errs <- fmt.Errorf("failed to create new cipher > %w", err)
-				return
-			}
-
-			if gcm, err = cipher.NewGCM(block); err != nil {
-				errs <- fmt.Errorf("failed to create new GCM > %w", err)
-				return
-			}
-
-			encrypted <- append(gcm.Seal(nil, nonce, chunk.Chunk[:chunk.Sought], nil), nonce...)
-		}
-
-		close(encrypted)
-	}()
-
-	return encrypted
-}
-
-func (sl *Safelock) writeChunks(
-	file *os.File,
-	action string,
-	calc *utils.ChunkPercentCalculator,
-	chunks <-chan []byte,
-	errs chan error,
-) {
-	go func() {
-		for chunk := range chunks {
-			if _, err := io.Copy(file, bytes.NewReader(chunk)); err != nil {
-				errs <- fmt.Errorf("failed to copy to temporary file > %w", err)
-				return
-			}
-
-			if percent, err := calc.GetPercent(); err != nil {
-				errs <- fmt.Errorf("failed to read input file > %w", err)
-				return
-			} else {
-				sl.updateStatus(fmt.Sprintf("%s compressed archive file", action), percent)
-			}
-		}
-
-		close(errs)
-	}()
 }

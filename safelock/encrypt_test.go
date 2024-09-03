@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	myErrs "github.com/mrf345/safelock-cli/errors"
+	slErrs "github.com/mrf345/safelock-cli/slErrs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,11 +20,10 @@ func TestEncryptWithInvalidInputPath(t *testing.T) {
 	outputFile, _ := os.CreateTemp("", "output_file")
 
 	defer os.Remove(outputFile.Name())
-	err := sl.Encrypt(context.TODO(), inputPath, outputFile.Name(), password)
-	_, isExpectedErr := errors.Unwrap(err).(*myErrs.ErrInvalidFile)
+	err := sl.Encrypt(context.TODO(), inputPath, outputFile, password)
 
 	assert.NotNil(err)
-	assert.True(isExpectedErr)
+	assert.True(slErrs.Is[*slErrs.ErrInvalidInputPath](err))
 }
 
 func TestEncryptFile(t *testing.T) {
@@ -34,7 +33,7 @@ func TestEncryptFile(t *testing.T) {
 	decSl := GetQuietSafelock()
 	inputFile, _ := os.CreateTemp("", "input_file")
 	outputDir, _ := os.MkdirTemp("", "output_dir")
-	outputPath := filepath.Join(outputDir, "output_file.sla")
+	outputFile, _ := os.CreateTemp(outputDir, "output_file.sla")
 	content := "Hello World!"
 	decryptedPath := filepath.Join(outputDir, filepath.Base(inputFile.Name()))
 	inputPaths := []string{inputFile.Name()}
@@ -44,8 +43,8 @@ func TestEncryptFile(t *testing.T) {
 	_, _ = inputFile.WriteString(content)
 	inputFile.Close()
 
-	inErr := encSl.Encrypt(context.TODO(), inputPaths, outputPath, password)
-	outErr := decSl.Decrypt(context.TODO(), outputPath, outputDir, password)
+	inErr := encSl.Encrypt(context.TODO(), inputPaths, outputFile, password)
+	outErr := decSl.Decrypt(context.TODO(), outputFile, outputDir, password)
 	reader, _ := os.Open(decryptedPath)
 	decrypted, _ := io.ReadAll(reader)
 	reader.Close()
@@ -63,7 +62,7 @@ func TestEncryptFileWithSha256AndGzip(t *testing.T) {
 	decSl := GetQuietSha256GzipSafelock()
 	inputFile, _ := os.CreateTemp("", "input_file")
 	outputDir, _ := os.MkdirTemp("", "output_dir")
-	outputPath := filepath.Join(outputDir, "output_file.sla")
+	outputFile, _ := os.CreateTemp(outputDir, "output_file.sla")
 	decryptedPath := filepath.Join(outputDir, filepath.Base(inputFile.Name()))
 	inputPaths := []string{inputFile.Name()}
 
@@ -71,9 +70,10 @@ func TestEncryptFileWithSha256AndGzip(t *testing.T) {
 	defer os.RemoveAll(outputDir)
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
+	inputFile.Close()
 
-	inErr := encSl.Encrypt(context.TODO(), inputPaths, outputPath, password)
-	outErr := decSl.Decrypt(context.TODO(), outputPath, outputDir, password)
+	inErr := encSl.Encrypt(context.TODO(), inputPaths, outputFile, password)
+	outErr := decSl.Decrypt(context.TODO(), outputFile, outputDir, password)
 	reader, _ := os.Open(decryptedPath)
 	decrypted, _ := io.ReadAll(reader)
 
@@ -90,18 +90,16 @@ func TestEncryptFileWithTimeout(t *testing.T) {
 	sl := GetQuietSafelock()
 	inputFile, _ := os.CreateTemp("", "input_file")
 	outputDir, _ := os.MkdirTemp("", "output_dir")
-	outputPath := filepath.Join(outputDir, "output_file.sla")
+	outputFile, _ := os.CreateTemp(outputDir, "output_file.sla")
 	inputPaths := []string{inputFile.Name()}
 
 	cancel()
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
-
-	err := sl.Encrypt(ctx, inputPaths, outputPath, password)
-	_, isExpectedErr := err.(*myErrs.ErrContextExpired)
+	err := sl.Encrypt(ctx, inputPaths, outputFile, password)
 
 	assert.NotNil(err)
-	assert.True(isExpectedErr)
+	assert.True(errors.Is(err, context.DeadlineExceeded))
 
 	// XXX: don't defer (temp files won't be deleted)
 	os.Remove(inputFile.Name())

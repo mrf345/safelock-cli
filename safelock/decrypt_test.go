@@ -5,28 +5,11 @@ import (
 	"errors"
 	"io"
 	"os"
-	"path/filepath"
 	"testing"
 
-	myErrs "github.com/mrf345/safelock-cli/errors"
+	slErrs "github.com/mrf345/safelock-cli/slErrs"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestDecryptWithInvalidInputPath(t *testing.T) {
-	assert := assert.New(t)
-	inputPath := "wrong_input.txt"
-	password := "testing123456"
-	sl := GetQuietSafelock()
-	outputFile, _ := os.CreateTemp("", "output_file")
-
-	defer os.Remove(outputFile.Name())
-
-	err := sl.Decrypt(context.TODO(), inputPath, outputFile.Name(), password)
-	_, isExpectedErr := errors.Unwrap(err).(*myErrs.ErrInvalidFile)
-
-	assert.NotNil(err)
-	assert.True(isExpectedErr)
-}
 
 func TestDecryptWithInvalidOutputPath(t *testing.T) {
 	assert := assert.New(t)
@@ -38,11 +21,10 @@ func TestDecryptWithInvalidOutputPath(t *testing.T) {
 	defer os.Remove(inputFile.Name())
 	defer os.Remove(outputFile.Name())
 
-	err := sl.Decrypt(context.TODO(), inputFile.Name(), outputFile.Name(), password)
-	_, isExpectedErr := errors.Unwrap(err).(*myErrs.ErrInvalidDirectory)
+	err := sl.Decrypt(context.TODO(), inputFile, outputFile.Name(), password)
 
 	assert.NotNil(err)
-	assert.True(isExpectedErr)
+	assert.True(slErrs.Is[*slErrs.ErrInvalidOutputPath](err))
 }
 
 func TestDecryptFileWithTimeout(t *testing.T) {
@@ -53,20 +35,19 @@ func TestDecryptFileWithTimeout(t *testing.T) {
 	sl := GetQuietSafelock()
 	inputFile, _ := os.CreateTemp("", "input_file")
 	outputDirPath, _ := os.MkdirTemp("", "output_dir")
-	outputPath := filepath.Join(outputDirPath, "output_file.sla")
+	outputFile, _ := os.CreateTemp(outputDirPath, "output_file.sla")
 	inputPaths := []string{inputFile.Name()}
 
 	cancel()
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
-	encErr := sl.Encrypt(context.TODO(), inputPaths, outputPath, password)
-	decErr := sl.Decrypt(ctx, inputFile.Name(), outputPath, password)
-	_, isExpectedErr := decErr.(*myErrs.ErrContextExpired)
+	encErr := sl.Encrypt(context.TODO(), inputPaths, outputFile, password)
+	decErr := sl.Decrypt(ctx, outputFile, outputDirPath, password)
 
 	assert.Nil(encErr)
 	assert.NotNil(decErr)
-	assert.True(isExpectedErr)
+	assert.True(errors.Is(decErr, context.DeadlineExceeded))
 
 	// XXX: don't defer (temp files won't be deleted)
 	os.Remove(inputFile.Name())
@@ -80,19 +61,18 @@ func TestDecryptFileWithWrongPassword(t *testing.T) {
 	sl := GetQuietSafelock()
 	inputFile, _ := os.CreateTemp("", "input_file")
 	outputDirPath, _ := os.MkdirTemp("", "output_dir")
-	outputPath := filepath.Join(outputDirPath, "output_file.sla")
+	outputFile, _ := os.CreateTemp(outputDirPath, "output_file.sla")
 	inputPaths := []string{inputFile.Name()}
 
 	_, _ = inputFile.WriteString(content)
 	_, _ = inputFile.Seek(0, io.SeekStart)
 
-	encErr := sl.Encrypt(context.TODO(), inputPaths, outputPath, password)
-	decErr := sl.Decrypt(context.TODO(), outputPath, outputDirPath, "wrong")
-	_, isExpectedErr := errors.Unwrap(decErr).(*myErrs.ErrFailedToAuthenticate)
+	encErr := sl.Encrypt(context.TODO(), inputPaths, outputFile, password)
+	decErr := sl.Decrypt(context.TODO(), outputFile, outputDirPath, "wrong")
 
 	assert.Nil(encErr)
 	assert.NotNil(decErr)
-	assert.True(isExpectedErr)
+	assert.True(slErrs.Is[*slErrs.ErrFailedToAuthenticate](decErr))
 
 	// XXX: don't defer (temp files won't be deleted)
 	os.Remove(inputFile.Name())

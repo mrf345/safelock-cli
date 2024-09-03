@@ -1,6 +1,6 @@
 // ⚡ Fast files encryption (AES-GSM) command-line tool and package.
 //
-// Checkout [safelock-cli/safelock] for package references and examples, And the GitHub [repo] for updates.
+// See [safelock-cli/safelock] for package references and examples, And the GitHub [repo] for updates.
 //
 // # Install
 //

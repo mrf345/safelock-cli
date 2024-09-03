@@ -1,4 +1,4 @@
-package myErrs
+package slErrs
 
 import "fmt"
 
@@ -10,4 +10,9 @@ type ErrFailedToAuthenticate struct {
 
 func (e *ErrFailedToAuthenticate) Error() string {
 	return fmt.Sprintf("invalid password or corrupted encryption > %s", e.Msg)
+}
+
+func (e *ErrFailedToAuthenticate) Is(t error) bool {
+	_, ok := t.(*ErrFailedToAuthenticate)
+	return ok
 }

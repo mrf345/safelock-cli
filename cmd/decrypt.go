@@ -2,8 +2,10 @@ package cmd
 
 import (
 	"context"
+	"os"
 
 	"github.com/mrf345/safelock-cli/safelock"
+	"github.com/mrf345/safelock-cli/slErrs"
 	"github.com/mrf345/safelock-cli/utils"
 	"github.com/spf13/cobra"
 )
@@ -16,6 +18,7 @@ var decryptCmd = &cobra.Command{
 		var err error
 		var pwd string
 		var sl *safelock.Safelock
+		var inputFile *os.File
 		const example = "example: safelock-cli decrypt encrypted.bin decrypted_files"
 
 		switch len(args) {
@@ -31,6 +34,8 @@ var decryptCmd = &cobra.Command{
 
 		if useSha256 {
 			sl = safelock.NewSha256()
+		} else if useSha512 {
+			sl = safelock.NewSha512()
 		} else {
 			sl = safelock.New()
 		}
@@ -40,10 +45,17 @@ var decryptCmd = &cobra.Command{
 		}
 
 		sl.Quiet = beQuiet
-		sl.Registry.TempDir = tempDir
 		inputPath, outputPath := args[0], args[1]
 
-		if err = sl.Decrypt(context.TODO(), inputPath, outputPath, pwd); err != nil {
+		if inputFile, err = os.Open(inputPath); err != nil {
+			utils.PrintErrsAndExit((&slErrs.ErrInvalidInputPath{
+				Path: inputPath,
+				Err:  err,
+			}).Error())
+		}
+		defer inputFile.Close()
+
+		if err = sl.Decrypt(context.TODO(), inputFile, outputPath, pwd); err != nil {
 			utils.PrintErrsAndExit(err.Error())
 		}
 	},
