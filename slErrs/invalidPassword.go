@@ -1,4 +1,4 @@
-package myErrs
+package slErrs
 
 import "fmt"
 

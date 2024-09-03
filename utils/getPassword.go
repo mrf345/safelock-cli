@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	myErrs "github.com/mrf345/safelock-cli/errors"
+	slErrs "github.com/mrf345/safelock-cli/slErrs"
 )
 
 // get the password from pipe or ask the user to enter it
@@ -27,7 +27,7 @@ func GetPassword(length int) (password string, err error) {
 	password = strings.TrimSpace(password)
 
 	if len(password) < length {
-		err = &myErrs.ErrInvalidPassword{Len: len(password), Need: length}
+		err = &slErrs.ErrInvalidPassword{Len: len(password), Need: length}
 	}
 
 	return

@@ -9,7 +9,7 @@ safelock-cli
 </a>
 </h1>
 
-Fast files encryption (AES-GCM) package and command-line tool built for speed with Go ⚡
+Fast files encryption (AES-GCM) package and command-line tool built for speed with Go and [Archiver](https://github.com/mholt/archiver) ⚡
 
 ### Install
 
@@ -39,78 +39,34 @@ And to decrypt
 ```shell
 safelock-cli decrypt encrypted_file_path decrypted_files_path
 ```
-> [!NOTE]
-> If you want it to run silently with no interaction
+> [!TIP]
+> If you want it to run silently with no interaction use `--quiet` and pipe the password
 
 ```shell
 echo "password123456" | safelock-cli encrypt path_to_encrypt encrypted_file_path --quiet
 ```
 
-<details>
-  <summary>Simple example of using it within a package</summary>
-
-  > Checkout [GoDocs](https://pkg.go.dev/github.com/mrf345/safelock-cli/safelock) for more examples and references
-
-  ```go
-  package main
-
-  import "github.com/mrf345/safelock-cli/safelock"
-
-  func main() {
-    lock := safelock.New()
-    inputPaths := []string{"/home/testing/important"}
-    outputPath := "/home/testing/encrypted.sla"
-    password := "testing123456"
-
-    // Encrypts `inputPaths` with the default settings
-    if err := lock.Encrypt(nil, inputPaths, outputPath, password); err != nil {
-      panic(err)
-    }
-
-    // Decrypts `outputPath` with the default settings
-    if err := lock.Decrypt(nil, outputPath, "/home/testing", password); err != nil {
-      panic(err)
-    }
-  }
-  ```
-</details>
+You can find interactive examples of using it as a package to [encrypt](https://pkg.go.dev/github.com/mrf345/safelock-cli/safelock#example-Safelock.Encrypt) and [decrypt](https://pkg.go.dev/github.com/mrf345/safelock-cli/safelock#example-Safelock.Decrypt).
 
 ### Performance
 
-With the default settings it should be about **three times** faster than `gpgtar`
+With the default settings it should be about **19.1** times faster than `gpgtar`
+
+> [!NOTE]
+> You can reproduce the results by running [benchmark/bench_and_plot.py](benchmark/bench_and_plot.py) (based on [matplotlib](https://github.com/matplotlib/matplotlib) and [hyperfine](https://github.com/sharkdp/hyperfine))
+
+<p align="center">
+  <img src="benchmark/encryption-time.webp" align="center" alt="encryption time" />
+  <img src="benchmark/decryption-time.webp" align="center" alt="encryption time" />
+</p>
+
+And you could gain a slight file size reduction
 
 ```shell
-> du -hs testing/
-1.2G testing/
+> du -hs test/
+1.2G test/
 
-> time gpgtar -e -o testing.gpg -c --yes --batch --gpg-args "--passphrase testing123456" testing/
-real	0m40.141s
-user	0m33.933s
-sys	0m6.930s
-
-
-> time echo "testing123456" | safelock-cli encrypt testing/ testing.sla --quiet
-real	0m8.403s
-user	0m10.790s
-sys	0m4.832s
-```
-
-> [!TIP]
-> You can get slightly better performance using the `--sha256` flag (less secure)
-
-```shell
-> time echo "testing123456" | safelock-cli encrypt testing/ testing.sla --quiet --sha256
-real	0m8.188s
-user	0m10.441s
-sys	0m4.709s
-```
-
-And no major file size difference
-
-```shell
-> ls -lh --block-size=MB testing.gpg
--rw-rw-r-- 1 user user 1247MB Aug 10 12:15 testing.gpg
-
-> ls -lh --block-size=MB testing.sla
--rw-rw-r-- 1 user user 1273MB Aug 10 11:30 testing.sla
+> ls -lh --block-size=MB test.sla test.gpg
+-rw-r--r-- 1 mrf3 mrf3 1.2G Sep  3 17:55 test.gpg
+-rw-r--r-- 1 mrf3 mrf3 959M Sep  3 17:29 test.sla
 ```

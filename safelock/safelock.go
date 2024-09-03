@@ -1,61 +1,86 @@
 package safelock
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/sha512"
 	"hash"
-	"os"
+	"io"
 
 	"github.com/GianlucaGuarini/go-observable"
+	"github.com/klauspost/compress/zstd"
 	"github.com/mholt/archiver/v4"
-	"github.com/mrf345/safelock-cli/utils"
 )
 
-// the main struct used to configure advanced encryption/decryption options
-type Safelock struct {
-	// files compression format (default: zstd)
-	Compression archiver.Compression
-	// files archiving tool (default: tar)
-	Archival archiver.Archival
-	// number of iterations performed to generate the encryption key (default: 32)
+// encryption/decryption configuration settings
+type EncryptionConfig struct {
 	IterationCount int
-	// encryption key length (default: 64)
+	// encryption key length (default: 48)
 	KeyLength int
 	// nonce length used to generate the encryption key (default: 12)
 	NonceLength int
-	// encrypted/decrypted files buffer size (default: 64 * 1024)
-	BufferSize int
-	// encryption/decryption channels buffer size increasing/decreasing it might improve performance (default: 30)
-	ChannelSize int
 	// minimum password length allowed (default: 8)
 	MinPasswordLength int
-	// hashing method used to generate the encryption key (default: sha512)
+	// hashing method used to generate the encryption key (default: sha384)
 	Hash func() hash.Hash
-	// observable instance that allows us to stream the status to multiple listeners
-	StatusObs *observable.Observable
+	// ratio to create file header size based on
+	HeaderRatio int
+	// lazy loaded GCM seals buffer size (default: 500)
+	GcmBufferSize int
+}
+
+func (ec *EncryptionConfig) getHeaderSize(fileSize int) int {
+	if ec.HeaderRatio > fileSize/100 {
+		return ec.HeaderRatio
+	}
+
+	return int(fileSize) / ec.HeaderRatio
+}
+
+// archiving and compression configuration settings
+type ArchiverConfig struct {
+	// files compression (default: zstd.SpeedFastest)
+	Compression archiver.Compression
+	// files archiving (default: tar)
+	Archival archiver.Archival
+}
+
+func (ac *ArchiverConfig) archive(ctx context.Context, output io.Writer, files []archiver.File) error {
+	return archiver.CompressedArchive{Compression: ac.Compression, Archival: ac.Archival}.
+		Archive(ctx, output, files)
+}
+
+// the main object used to configure safelock
+type Safelock struct {
+	EncryptionConfig
+	ArchiverConfig
+
 	// disable all output and logs (default: false)
 	Quiet bool
-	// configures how we handle temporary files
-	Registry *utils.FilesRegistry
+	// observable instance that allows us to stream the status to multiple listeners
+	StatusObs *observable.Observable
 }
 
 // creates a new [safelock.Safelock] instance with the default recommended options
 func New() *Safelock {
 	return &Safelock{
-		Compression:       archiver.Zstd{},
-		Archival:          archiver.Tar{},
-		IterationCount:    32,
-		KeyLength:         64,
-		BufferSize:        64 * 1024,
-		NonceLength:       12,
-		MinPasswordLength: 8,
-		ChannelSize:       30,
-		Hash:              sha512.New,
-		StatusObs:         observable.New(),
-		Registry: &utils.FilesRegistry{
-			PrefixText: "SF_temp",
-			Paths:      make(map[string]struct{}),
-			TempDir:    os.TempDir(),
+		StatusObs: observable.New(),
+		ArchiverConfig: ArchiverConfig{
+			Archival: archiver.Tar{},
+			Compression: archiver.Zstd{
+				EncoderOptions: []zstd.EOption{
+					zstd.WithEncoderLevel(zstd.SpeedFastest),
+				},
+			},
+		},
+		EncryptionConfig: EncryptionConfig{
+			IterationCount:    32,
+			KeyLength:         48,
+			NonceLength:       12,
+			MinPasswordLength: 8,
+			HeaderRatio:       7400,
+			GcmBufferSize:     500,
+			Hash:              sha512.New384,
 		},
 	}
 }
@@ -68,10 +93,10 @@ func NewSha256() *Safelock {
 	return options
 }
 
-func (sl *Safelock) encryptionBufferSize() int {
-	return sl.BufferSize - (sl.NonceLength + 4)
-}
-
-func (sl *Safelock) decryptionBufferSize() int {
-	return sl.BufferSize + sl.NonceLength
+// creates a new [safelock.Safelock] instance with sha512 hashing, could be slightly faster
+func NewSha512() *Safelock {
+	options := New()
+	options.Hash = sha512.New
+	options.KeyLength = 64
+	return options
 }

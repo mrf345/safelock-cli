@@ -1,26 +1,7 @@
 // Fast files encryption (AES-GSM) package ⚡
 //
-// # Example
+// Check [encryption] and [decryption] for interactive examples.
 //
-//	package main
-//
-//	import "github.com/mrf345/safelock-cli/safelock"
-//
-//	func main() {
-//	  lock := safelock.New()
-//	  inputPaths := []string{"/home/testing/important"}
-//	  outputPath := "/home/testing/encrypted.sla"
-//	  extractTo := "/home/testing"
-//	  password := "testing123456"
-//
-//	  // Encrypts `inputPaths` with the default settings
-//	  if err := lock.Encrypt(nil, inputPath, outputPath, password); err != nil {
-//	    panic(err)
-//	  }
-//
-//	  // Decrypts `outputPath` with the default settings
-//	  if err := lock.Decrypt(nil, outputPath, extractTo, password); err != nil {
-//	    panic(err)
-//	  }
-//	}
+// [encryption]: https://pkg.go.dev/github.com/mrf345/safelock-cli/safelock#example-Safelock.Encrypt
+// [decryption]: https://pkg.go.dev/github.com/mrf345/safelock-cli/safelock#example-Safelock.Decrypt
 package safelock
