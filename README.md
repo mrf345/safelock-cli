@@ -53,7 +53,7 @@ You can find interactive examples of using it as a package to [encrypt](https://
 With the default settings it should be about **19.1** times faster than `gpgtar`
 
 > [!NOTE]
-> You can reproduce the results by running [benchmark/bench_and_plot.py](benchmark/bench_and_plot.py) (based on [matplotlib](https://github.com/matplotlib/matplotlib) and [hyperfine](https://github.com/sharkdp/hyperfine))
+> You can reproduce the results by running [bench_and_plot.py](benchmark/bench_and_plot.py) (based on [matplotlib](https://github.com/matplotlib/matplotlib) and [hyperfine](https://github.com/sharkdp/hyperfine))
 
 <p align="center">
   <img src="benchmark/encryption-time.webp" align="center" alt="encryption time" />
