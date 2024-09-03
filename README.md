@@ -56,8 +56,12 @@ With the default settings it should be about **19.1** times faster than `gpgtar`
 > You can reproduce the results by running [bench_and_plot.py](benchmark/bench_and_plot.py) (based on [matplotlib](https://github.com/matplotlib/matplotlib) and [hyperfine](https://github.com/sharkdp/hyperfine))
 
 <p align="center">
-  <img src="benchmark/encryption-time.webp" align="center" alt="encryption time" />
-  <img src="benchmark/decryption-time.webp" align="center" alt="encryption time" />
+  <a href="https://raw.githubusercontent.com/mrf345/safelock-cli/master/benchmark/encryption-time.webp" target="_blank">
+    <img src="benchmark/encryption-time.webp" align="center" alt="encryption time" />
+  </a>
+  <a href="https://raw.githubusercontent.com/mrf345/safelock-cli/master/benchmark/decryption-time.webp" target="_blank">
+    <img src="benchmark/decryption-time.webp" align="center" alt="encryption time" />
+  </a>
 </p>
 
 And you could gain a slight file size reduction
