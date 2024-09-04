@@ -50,27 +50,19 @@ You can find interactive examples of using it as a package to [encrypt](https://
 
 ### Performance
 
-With the default settings it should be about **19.1** times faster than `gpgtar`
+With the default settings the encryption should be about **19.5** times faster than `gpgtar` and **10.1** times faster than `7zip` 
 
 > [!NOTE]
-> You can reproduce the results by running [bench_and_plot.py](benchmark/bench_and_plot.py) (based on [matplotlib](https://github.com/matplotlib/matplotlib) and [hyperfine](https://github.com/sharkdp/hyperfine))
+> You can reproduce the results by running [bench_and_plot.py](benchmark/bench_and_plot.py) (based on [Matplotlib](https://github.com/matplotlib/matplotlib) and [Hyperfine](https://github.com/sharkdp/hyperfine))
 
 <p align="center">
   <a href="https://raw.githubusercontent.com/mrf345/safelock-cli/master/benchmark/encryption-time.webp" target="_blank">
-    <img src="benchmark/encryption-time.webp" align="center" alt="encryption time" />
+    <img src="benchmark/encryption-time.webp" alt="encryption time" />
   </a>
   <a href="https://raw.githubusercontent.com/mrf345/safelock-cli/master/benchmark/decryption-time.webp" target="_blank">
-    <img src="benchmark/decryption-time.webp" align="center" alt="encryption time" />
+    <img src="benchmark/decryption-time.webp" alt="decryption time" />
+  </a>
+  <a href="https://raw.githubusercontent.com/mrf345/safelock-cli/master/benchmark/file-size.webp" target="_blank">
+    <img src="benchmark/file-size.webp" alt="file size" />
   </a>
 </p>
-
-And you could gain a slight file size reduction
-
-```shell
-> du -hs test/
-1.2G test/
-
-> ls -lh --block-size=MB test.sla test.gpg
--rw-r--r-- 1 mrf3 mrf3 1.2G Sep  3 17:55 test.gpg
--rw-r--r-- 1 mrf3 mrf3 959M Sep  3 17:29 test.sla
-```
