@@ -27,6 +27,28 @@ func TestDecryptWithInvalidOutputPath(t *testing.T) {
 	assert.True(slErrs.Is[*slErrs.ErrInvalidOutputPath](err))
 }
 
+func TestDecryptWithFaultyEncryptedFile(t *testing.T) {
+	assert := assert.New(t)
+	password := "testing123456"
+	sl := GetQuietSafelock()
+	inputFile, _ := os.CreateTemp("", "input_file")
+	outputPath, _ := os.MkdirTemp("", "output_dir")
+	data := make([]byte, sl.HeaderRatio)
+	_, wErr := inputFile.Write(append(
+		data,
+		[]byte("faulty encryption file")...,
+	))
+
+	err := sl.Decrypt(context.TODO(), inputFile, outputPath, password)
+
+	assert.Nil(wErr)
+	assert.NotNil(err)
+	assert.True(slErrs.Is[*slErrs.ErrFailedToAuthenticate](err))
+
+	os.Remove(inputFile.Name())
+	os.RemoveAll(outputPath)
+}
+
 func TestDecryptFileWithTimeout(t *testing.T) {
 	assert := assert.New(t)
 	password := "testing123456"

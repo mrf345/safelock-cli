@@ -77,8 +77,8 @@ def decrypt():
         exit(err)
 
 os.chdir(os.path.expanduser("~"))
-# encrypt()
-# decrypt()
+encrypt()
+decrypt()
 os.chdir(root)
 plt.margins(3.5)
 

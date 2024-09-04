@@ -45,6 +45,7 @@ func (sw *safelockWriter) Write(chunk []byte) (written int, err error) {
 	encrypted := sw.asyncGcm.encryptChunk(chunk)
 
 	if written, err = sw.writer.Write(encrypted); err != nil {
+		err = fmt.Errorf("can't write encrypted chunk > %w", err)
 		return written, sw.handleErr(err)
 	}
 
@@ -67,6 +68,7 @@ func (sw *safelockWriter) WriteHeader() (err error) {
 	headerBytes = append([]byte(header), headerBytes[len(header):]...)
 
 	if _, err = sw.writer.Write(headerBytes); err != nil {
+		err = fmt.Errorf("can't write header bytes > %w", err)
 		return sw.handleErr(err)
 	}
 
