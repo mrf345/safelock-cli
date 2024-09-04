@@ -55,7 +55,7 @@ func (ag *asyncGcm) load() {
 			}
 
 			if gcm, err = getGCM(ag.pwd, nonce, ag.config); err != nil {
-				ag.errs <- fmt.Errorf("failed to create new GCM > %w", err)
+				ag.errs <- err
 				return
 			}
 
@@ -100,7 +100,6 @@ func decryptChunk(chunk []byte, pwd string, limit int, config EncryptionConfig) 
 	nonce := chunk[limit-(config.NonceLength) : limit]
 
 	if gcm, err = getGCM(pwd, nonce, config); err != nil {
-		err = fmt.Errorf("failed to create new GCM > %w", err)
 		return
 	}
 

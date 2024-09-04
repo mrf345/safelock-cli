@@ -3,10 +3,12 @@ package safelock
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
 
+	"github.com/mrf345/safelock-cli/slErrs"
 	"github.com/mrf345/safelock-cli/utils"
 )
 
@@ -53,15 +55,22 @@ func (sr *safelockReader) ReadHeader() (err error) {
 	headerBytes := make([]byte, sr.headerSize)
 
 	if _, err = sr.reader.Seek(sr.diffSize(), io.SeekStart); err != nil {
+		err = fmt.Errorf("can't seek header > %w", err)
 		return sr.handleErr(err)
 	}
 
 	if _, err = sr.reader.Read(headerBytes); err != nil {
+		err = fmt.Errorf("can't read header > %w", err)
 		return sr.handleErr(err)
 	}
 
 	header := string(bytes.Trim(headerBytes, "\x00")[:])
 	sr.blocks = strings.Split(header, ";")[1:]
+
+	if len(sr.blocks) == 0 {
+		err = &slErrs.ErrFailedToAuthenticate{Msg: "missing header content"}
+		return
+	}
 
 	if _, err = sr.reader.Seek(0, io.SeekStart); err != nil {
 		return sr.handleErr(err)
@@ -90,16 +99,19 @@ func (sr *safelockReader) Read(chunk []byte) (read int, err error) {
 	block, sr.blocks = sr.blocks[0], sr.blocks[1:]
 
 	if blockSize, err = strconv.Atoi(block); err != nil {
+		err = fmt.Errorf("invalid header block size > %w", err)
 		return 0, sr.handleErr(err)
 	}
 
 	encrypted := make([]byte, blockSize)
 
 	if read, err = sr.reader.Read(encrypted); err != nil && err != io.EOF {
+		err = fmt.Errorf("cant't read encrypted chunk > %w", err)
 		return read, sr.handleErr(err)
 	}
 
 	if decrypted, err = decryptChunk(encrypted, sr.pwd, read, sr.config); err != nil {
+		err = fmt.Errorf("can't decrypt chunk > %w", err)
 		return read, sr.handleErr(err)
 	}
 
