@@ -21,7 +21,6 @@ import (
 func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.Writer, password string) (err error) {
 	errs := make(chan error)
 	signals, closeSignals := sl.getExitSignals()
-	start := 20.0
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -36,25 +35,18 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.
 		Trigger(StatusEnd.Str())
 
 	go func() {
-		var inputFiles []archiver.File
-
 		if err = sl.validateEncryptionInputs(inputPaths, password); err != nil {
 			errs <- fmt.Errorf("invalid encryption input > %w", err)
 			return
 		}
 
-		if inputFiles, err = sl.getInputFiles(ctx, inputPaths, 5.0, start); err != nil {
-			errs <- fmt.Errorf("failed to read and list input paths > %w", err)
-			return
-		}
-
 		ctx, cancel := context.WithCancel(ctx)
-		calc := utils.NewPathsCalculator(start, inputFiles)
+		calc := utils.NewPathsCalculator(20.0)
 		rw := newWriter(password, output, cancel, calc, sl.EncryptionConfig, errs)
 		rw.asyncGcm = newAsyncGcm(password, sl.EncryptionConfig, errs)
 
-		if err = sl.encryptFiles(ctx, inputFiles, rw, calc); err != nil {
-			errs <- fmt.Errorf("failed to create encrypted archive file > %w", err)
+		if err = sl.encryptFiles(ctx, inputPaths, rw, calc); err != nil {
+			errs <- err
 			return
 		}
 
@@ -109,51 +101,36 @@ func (sl *Safelock) validateEncryptionInputs(inputPaths []string, pwd string) (e
 	return
 }
 
-func (sl *Safelock) getInputFiles(
+func (sl *Safelock) encryptFiles(
 	ctx context.Context,
-	paths []string,
-	start, end float64,
-) (files []archiver.File, err error) {
-	sl.updateStatus("Listing and preparing files ", start)
+	inputPaths []string,
+	slWriter *safelockWriter,
+	calc *utils.PercentCalculator,
+) (err error) {
+	sl.updateStatus("Listing and preparing files ", 5.0)
 
-	filesMap := make(map[string]string, len(paths))
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
+	var files []archiver.File
+	var filesMap = make(map[string]string, len(inputPaths))
 
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-				if end >= start {
-					start += 1.0
-					time.Sleep(time.Second / 5)
-				}
-			}
-		}
-	}()
-
-	for _, path := range paths {
+	for _, path := range inputPaths {
 		filesMap[path] = ""
 	}
 
 	if files, err = archiver.FilesFromDisk(nil, filesMap); err != nil {
+		err = fmt.Errorf("failed to read and list input paths > %w", err)
 		return
 	}
 
-	return
-}
+	go func() {
+		for _, file := range files {
+			calc.InputSize += int(file.Size())
+		}
 
-func (sl *Safelock) encryptFiles(
-	ctx context.Context,
-	inputFiles []archiver.File,
-	slWriter *safelockWriter,
-	calc *utils.PercentCalculator,
-) (err error) {
-	go sl.updateProgressStatus(ctx, "Encrypting", calc)
+		sl.updateProgressStatus(ctx, "Encrypting", calc)
+	}()
 
-	if err = sl.archive(ctx, slWriter, inputFiles); err != nil {
+	if err = sl.archive(ctx, slWriter, files); err != nil {
+		err = fmt.Errorf("failed to create encrypted archive file > %w", err)
 		return
 	}
 
