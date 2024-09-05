@@ -18,7 +18,7 @@ import (
 // NOTE: `ctx` context is optional you can pass `nil` and the method will handle it
 func (sl *Safelock) Decrypt(ctx context.Context, input InputReader, outputPath, password string) (err error) {
 	errs := make(chan error)
-	signals := sl.getExitSignalsChannel()
+	signals, closeSignals := sl.getExitSignals()
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -59,8 +59,8 @@ func (sl *Safelock) Decrypt(ctx context.Context, input InputReader, outputPath, 
 		}
 
 		sl.updateStatus("All set and decrypted!", 100.0)
-		close(signals)
 		close(errs)
+		closeSignals()
 	}()
 
 	for {

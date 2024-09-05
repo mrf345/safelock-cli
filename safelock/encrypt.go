@@ -20,7 +20,8 @@ import (
 // NOTE: `ctx` context is optional you can pass `nil` and the method will handle it
 func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.Writer, password string) (err error) {
 	errs := make(chan error)
-	signals := sl.getExitSignalsChannel()
+	signals, closeSignals := sl.getExitSignals()
+	start := 20.0
 
 	if ctx == nil {
 		ctx = context.Background()
@@ -35,23 +36,24 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.
 		Trigger(StatusEnd.Str())
 
 	go func() {
-		var calc *utils.PercentCalculator
+		var inputFiles []archiver.File
 
 		if err = sl.validateEncryptionInputs(inputPaths, password); err != nil {
 			errs <- fmt.Errorf("invalid encryption input > %w", err)
 			return
 		}
 
-		if calc, err = utils.NewPathsCalculator(inputPaths, 20.0); err != nil {
-			errs <- fmt.Errorf("failed to read input paths > %w", err)
+		if inputFiles, err = sl.getInputFiles(ctx, inputPaths, 5.0, start); err != nil {
+			errs <- fmt.Errorf("failed to read and list input paths > %w", err)
 			return
 		}
 
 		ctx, cancel := context.WithCancel(ctx)
+		calc := utils.NewPathsCalculator(start, inputFiles)
 		rw := newWriter(password, output, cancel, calc, sl.EncryptionConfig, errs)
 		rw.asyncGcm = newAsyncGcm(password, sl.EncryptionConfig, errs)
 
-		if err = sl.encryptFiles(ctx, inputPaths, rw, calc); err != nil {
+		if err = sl.encryptFiles(ctx, inputFiles, rw, calc); err != nil {
 			errs <- fmt.Errorf("failed to create encrypted archive file > %w", err)
 			return
 		}
@@ -62,8 +64,8 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.
 		}
 
 		sl.updateStatus("All set and encrypted!", 100.0)
-		close(signals)
 		close(errs)
+		closeSignals()
 	}()
 
 	for {
@@ -80,10 +82,15 @@ func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.
 	}
 }
 
-func (sl *Safelock) getExitSignalsChannel() chan os.Signal {
+func (sl *Safelock) getExitSignals() (<-chan os.Signal, func()) {
 	signals := make(chan os.Signal, 2)
+	close := func() {
+		signal.Stop(signals)
+		close(signals)
+	}
+
 	signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
-	return signals
+	return signals, close
 }
 
 func (sl *Safelock) validateEncryptionInputs(inputPaths []string, pwd string) (err error) {
@@ -102,28 +109,56 @@ func (sl *Safelock) validateEncryptionInputs(inputPaths []string, pwd string) (e
 	return
 }
 
-func (sl *Safelock) encryptFiles(
+func (sl *Safelock) getInputFiles(
 	ctx context.Context,
-	inputPaths []string,
-	slWriter *safelockWriter,
-	calc *utils.PercentCalculator,
-) (err error) {
-	var files []archiver.File
-	var filesMap = make(map[string]string, len(inputPaths))
+	paths []string,
+	start, end float64,
+) (files []archiver.File, err error) {
+	sl.updateStatus("Listing and preparing files ", start)
 
-	for _, path := range inputPaths {
+	filesMap := make(map[string]string, len(paths))
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if end >= start {
+					start += 1.0
+					time.Sleep(time.Second / 5)
+				}
+			}
+		}
+	}()
+
+	for _, path := range paths {
 		filesMap[path] = ""
 	}
 
 	if files, err = archiver.FilesFromDisk(nil, filesMap); err != nil {
-		err = fmt.Errorf("failed to list archive files > %w", err)
 		return
 	}
 
-	go sl.updateProgressStatus(ctx, "Encrypting", calc)
-	defer slWriter.cancel()
+	return
+}
 
-	return sl.archive(ctx, slWriter, files)
+func (sl *Safelock) encryptFiles(
+	ctx context.Context,
+	inputFiles []archiver.File,
+	slWriter *safelockWriter,
+	calc *utils.PercentCalculator,
+) (err error) {
+	go sl.updateProgressStatus(ctx, "Encrypting", calc)
+
+	if err = sl.archive(ctx, slWriter, inputFiles); err != nil {
+		return
+	}
+
+	slWriter.cancel()
+	return
 }
 
 func (sl *Safelock) updateProgressStatus(ctx context.Context, act string, calc *utils.PercentCalculator) {
