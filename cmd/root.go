@@ -16,7 +16,7 @@ var rootCmd = &cobra.Command{
 	Use:     "safelock-cli",
 	Short:   "Simple tool to encrypt/decrypt files with AES encryption",
 	Long:    "Simple command-line tool to encrypt and decrypt files with AES encryption",
-	Version: "0.4.1",
+	Version: "0.4.2",
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
