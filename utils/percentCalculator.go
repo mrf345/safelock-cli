@@ -2,8 +2,6 @@ package utils
 
 import (
 	"io"
-
-	"github.com/mholt/archiver/v4"
 )
 
 // helps calculating file completion percentage
@@ -15,20 +13,10 @@ type PercentCalculator struct {
 }
 
 // create new instance of [utils.PercentCalculator] for input paths
-func NewPathsCalculator(start float64, files []archiver.File) *PercentCalculator {
-	pc := &PercentCalculator{
+func NewPathsCalculator(start float64) *PercentCalculator {
+	return &PercentCalculator{
 		start: start,
 		end:   100.0,
-	}
-	pc.setInputPathsSize(files)
-	return pc
-}
-
-func (pc *PercentCalculator) setInputPathsSize(files []archiver.File) {
-	for _, file := range files {
-		if !file.FileInfo.IsDir() {
-			pc.InputSize += int(file.FileInfo.Size())
-		}
 	}
 }
 
@@ -50,5 +38,11 @@ func (pc *PercentCalculator) setInputSeekerSize(seeker io.Seeker) (err error) {
 
 // get current completion percentage
 func (pc *PercentCalculator) GetPercent() float64 {
-	return pc.start + (float64(pc.OutputSize) / float64(pc.InputSize) * pc.end)
+	percent := pc.start + (float64(pc.OutputSize) / float64(pc.InputSize) * pc.end)
+
+	if pc.end > percent {
+		return percent
+	}
+
+	return pc.end
 }

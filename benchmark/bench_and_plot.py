@@ -54,7 +54,7 @@ def encrypt():
         f"'echo \"{pwd}\" | {safelock_cmd} encrypt {input_path} {get_name('256')} --quiet --sha256' "
         f"'echo \"{pwd}\" | {safelock_cmd} encrypt {input_path} {get_name('512')} --quiet --sha512' "
         f"'7z a -p{pwd} -mx1 {get_name('7z')} {input_path}' "
-        f"'gpgtar -e -o {get_name('gpg')} -c --yes --batch --gpg-args \"--passphrase {pwd}\" Videos/' "
+        f"'gpgtar -e -o {get_name('gpg')} -c --yes --batch --gpg-args \"--passphrase {pwd}\" {input_path}' "
         f"--export-json {root}/encryption.json"
     )
 
