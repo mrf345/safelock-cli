@@ -107,10 +107,9 @@ func (sl *Safelock) encryptFiles(
 	slWriter *safelockWriter,
 	calc *utils.PercentCalculator,
 ) (err error) {
-	sl.updateStatus("Listing and preparing files ", 5.0)
-
 	var files []archiver.File
 	var filesMap = make(map[string]string, len(inputPaths))
+	var cancelListingStatus = sl.updateListingStatus(ctx, 1.0, calc.Start)
 
 	for _, path := range inputPaths {
 		filesMap[path] = ""
@@ -126,6 +125,7 @@ func (sl *Safelock) encryptFiles(
 			calc.InputSize += int(file.Size())
 		}
 
+		cancelListingStatus()
 		sl.updateProgressStatus(ctx, "Encrypting", calc)
 	}()
 
@@ -135,6 +135,29 @@ func (sl *Safelock) encryptFiles(
 	}
 
 	slWriter.cancel()
+	return
+}
+
+func (sl *Safelock) updateListingStatus(ctx context.Context, start, end float64) (cancel context.CancelFunc) {
+	ctx, cancel = context.WithCancel(ctx)
+
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				if start >= end {
+					return
+				}
+
+				start += 1
+				sl.updateStatus("Listing and preparing files", start)
+				time.Sleep(time.Second / 2)
+			}
+		}
+	}()
+
 	return
 }
 

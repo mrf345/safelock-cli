@@ -36,11 +36,6 @@ func newWriter(
 	}
 }
 
-func (sw *safelockWriter) setSize() {
-	sw.size = sw.calc.OutputSize
-	sw.setHeaderSize()
-}
-
 func (sw *safelockWriter) Write(chunk []byte) (written int, err error) {
 	encrypted := sw.asyncGcm.encryptChunk(chunk)
 
@@ -73,4 +68,9 @@ func (sw *safelockWriter) WriteHeader() (err error) {
 	}
 
 	return
+}
+
+func (sw *safelockWriter) setSize() {
+	sw.size = sw.calc.OutputSize
+	sw.headerSize = sw.config.getHeaderSizeIn(sw.size)
 }
