@@ -100,7 +100,6 @@ func (sl *Safelock) decryptFiles(
 	}
 
 	go sl.updateProgressStatus(ctx, "Decrypting", calc)
-	defer slReader.cancel()
 
 	fileHandler := getExtractFileHandler(outputPath)
 
@@ -108,6 +107,7 @@ func (sl *Safelock) decryptFiles(
 		return fmt.Errorf("cannot extract archive file > %w", err)
 	}
 
+	slReader.cancel()
 	return
 }
 

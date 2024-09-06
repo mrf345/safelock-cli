@@ -19,10 +19,6 @@ type safelockReaderWriterBase struct {
 	err        error
 }
 
-func (srw *safelockReaderWriterBase) setHeaderSize() {
-	srw.headerSize = srw.config.getHeaderSize(srw.size)
-}
-
 func (srw *safelockReaderWriterBase) diffSize() int64 {
 	return int64(srw.size - srw.headerSize)
 }

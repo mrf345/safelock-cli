@@ -44,11 +44,6 @@ func newReader(
 	}
 }
 
-func (sr *safelockReader) setSize() {
-	sr.size = sr.calc.InputSize
-	sr.setHeaderSize()
-}
-
 func (sr *safelockReader) ReadHeader() (err error) {
 	sr.setSize()
 
@@ -77,6 +72,11 @@ func (sr *safelockReader) ReadHeader() (err error) {
 	}
 
 	return
+}
+
+func (sr *safelockReader) setSize() {
+	sr.size = sr.calc.InputSize
+	sr.headerSize = sr.config.getHeaderSizeOut(sr.size)
 }
 
 func (sr *safelockReader) Read(chunk []byte) (read int, err error) {

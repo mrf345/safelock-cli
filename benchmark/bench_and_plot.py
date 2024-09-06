@@ -8,7 +8,7 @@ from matplotlib.colors import XKCD_COLORS as plot_colors
 safelock_cmd = "safelock-cli"
 pwd = "123456789"
 rest = "60s"
-input_path = "~/Videos"
+input_path = "Videos"
 output_name = "test"
 output_dir = "safelock_dump"
 runs = 3

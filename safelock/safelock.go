@@ -29,12 +29,24 @@ type EncryptionConfig struct {
 	GcmBufferSize int
 }
 
-func (ec *EncryptionConfig) getHeaderSize(fileSize int) int {
-	if ec.HeaderRatio > fileSize/100 {
+func (ec *EncryptionConfig) getHeaderSizeIn(fileSize int) int {
+	size := fileSize / ec.HeaderRatio
+
+	if ec.HeaderRatio > size {
 		return ec.HeaderRatio
 	}
 
-	return int(fileSize) / ec.HeaderRatio
+	return (fileSize + size) / ec.HeaderRatio
+}
+
+func (ec *EncryptionConfig) getHeaderSizeOut(fileSize int) int {
+	size := fileSize / ec.HeaderRatio
+
+	if ec.HeaderRatio > size {
+		return ec.HeaderRatio
+	}
+
+	return fileSize / ec.HeaderRatio
 }
 
 // archiving and compression configuration settings
@@ -78,7 +90,7 @@ func New() *Safelock {
 			KeyLength:         48,
 			NonceLength:       12,
 			MinPasswordLength: 8,
-			HeaderRatio:       7400,
+			HeaderRatio:       1024 * 4,
 			GcmBufferSize:     500,
 			Hash:              sha512.New384,
 		},
