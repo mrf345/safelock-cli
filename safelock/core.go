@@ -24,8 +24,8 @@ type asyncGcm struct {
 	done   chan bool
 }
 
-func newAsyncGcm(pwd string, config EncryptionConfig, errs chan<- error) *asyncGcm {
-	ag := &asyncGcm{
+func newAsyncGcm(pwd string, config EncryptionConfig, errs chan<- error) asyncGcm {
+	ag := asyncGcm{
 		pwd:    pwd,
 		config: config,
 		errs:   errs,

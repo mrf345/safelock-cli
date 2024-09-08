@@ -2,30 +2,41 @@ package safelock
 
 import (
 	"context"
-
-	"github.com/mrf345/safelock-cli/utils"
 )
 
-type safelockReaderWriterBase struct {
-	config EncryptionConfig
-	pwd    string
-	errs   chan<- error
-	cancel context.CancelFunc
-	calc   *utils.PercentCalculator
-
-	size       int
-	headerSize int
-	blocks     []string
-	err        error
+type getPercent interface {
+	getCompletedPercent() float64
 }
 
-func (srw *safelockReaderWriterBase) diffSize() int64 {
-	return int64(srw.size - srw.headerSize)
+type safelockReaderWriterBase struct {
+	config                EncryptionConfig
+	pwd                   string
+	errs                  chan<- error
+	cancel                context.CancelFunc
+	blocks                []string
+	err                   error
+	start, end            float64
+	inputSize, outputSize int
 }
 
 func (srw *safelockReaderWriterBase) handleErr(err error) error {
+	// panic(err)
 	srw.err = err
 	srw.errs <- err
 	srw.cancel()
 	return err
+}
+
+func (srw safelockReaderWriterBase) getCompletedPercent() float64 {
+	percent := srw.start + (float64(srw.outputSize) / float64(srw.inputSize) * srw.end)
+
+	if srw.end > percent {
+		return percent
+	}
+
+	return srw.end
+}
+
+func (srw *safelockReaderWriterBase) increaseInputSize(increment int) {
+	srw.inputSize += increment
 }

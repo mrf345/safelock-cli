@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/mrf345/safelock-cli/slErrs"
-	"github.com/mrf345/safelock-cli/utils"
 )
 
 type InputReader interface {
@@ -19,7 +18,7 @@ type InputReader interface {
 
 type safelockReader struct {
 	io.Reader
-	safelockReaderWriterBase
+	*safelockReaderWriterBase
 	reader   InputReader
 	overflow []byte
 }
@@ -27,29 +26,36 @@ type safelockReader struct {
 func newReader(
 	pwd string,
 	reader InputReader,
+	start float64,
 	cancel context.CancelFunc,
-	calc *utils.PercentCalculator,
 	config EncryptionConfig,
 	errs chan<- error,
-) *safelockReader {
-	return &safelockReader{
+) safelockReader {
+	return safelockReader{
 		reader: reader,
-		safelockReaderWriterBase: safelockReaderWriterBase{
+		safelockReaderWriterBase: &safelockReaderWriterBase{
 			pwd:    pwd,
-			calc:   calc,
 			errs:   errs,
 			cancel: cancel,
 			config: config,
+			start:  start,
+			end:    100.0,
 		},
 	}
 }
 
+func (sr *safelockReader) setInputSize() (err error) {
+	size, err := sr.reader.Seek(0, io.SeekEnd)
+	sr.inputSize = int(size)
+	return
+}
+
 func (sr *safelockReader) ReadHeader() (err error) {
-	sr.setSize()
+	headerSize := sr.config.getHeaderSizeOut(sr.inputSize)
+	sizeDiff := int64(sr.inputSize - headerSize)
+	headerBytes := make([]byte, headerSize)
 
-	headerBytes := make([]byte, sr.headerSize)
-
-	if _, err = sr.reader.Seek(sr.diffSize(), io.SeekStart); err != nil {
+	if _, err = sr.reader.Seek(sizeDiff, io.SeekStart); err != nil {
 		err = fmt.Errorf("can't seek header > %w", err)
 		return sr.handleErr(err)
 	}
@@ -72,11 +78,6 @@ func (sr *safelockReader) ReadHeader() (err error) {
 	}
 
 	return
-}
-
-func (sr *safelockReader) setSize() {
-	sr.size = sr.calc.InputSize
-	sr.headerSize = sr.config.getHeaderSizeOut(sr.size)
 }
 
 func (sr *safelockReader) Read(chunk []byte) (read int, err error) {
@@ -115,7 +116,7 @@ func (sr *safelockReader) Read(chunk []byte) (read int, err error) {
 		return read, sr.handleErr(err)
 	}
 
-	sr.calc.OutputSize += len(decrypted)
+	sr.outputSize += len(decrypted)
 
 	return sr.handleOverflowOut(&chunk, decrypted), nil
 }
