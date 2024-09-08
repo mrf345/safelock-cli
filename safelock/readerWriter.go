@@ -20,7 +20,6 @@ type safelockReaderWriterBase struct {
 }
 
 func (srw *safelockReaderWriterBase) handleErr(err error) error {
-	// panic(err)
 	srw.err = err
 	srw.errs <- err
 	srw.cancel()
