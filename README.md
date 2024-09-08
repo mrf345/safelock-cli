@@ -50,7 +50,8 @@ You can find interactive examples of using it as a package to [encrypt](https://
 
 ### Performance
 
-With the default settings the encryption should be about **18.5** times faster than `gpgtar` and **8.8** times faster than `7zip` 
+- Encryption should be about **20.2** times faster than `gpgtar`, and the decryption **3.3** times.
+- Encryption should be about **9.1** times faster than `7zip`, and the decryption **9.5** times.
 
 > [!NOTE]
 > You can reproduce the results by running [bench_and_plot.py](benchmark/bench_and_plot.py) (based on [Matplotlib](https://github.com/matplotlib/matplotlib) and [Hyperfine](https://github.com/sharkdp/hyperfine))

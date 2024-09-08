@@ -5,33 +5,34 @@ import (
 	"fmt"
 	"io"
 	"strings"
-
-	"github.com/mrf345/safelock-cli/utils"
 )
 
 type safelockWriter struct {
 	io.Writer
-	safelockReaderWriterBase
+	*safelockReaderWriterBase
 	writer   io.Writer
-	asyncGcm *asyncGcm
+	asyncGcm asyncGcm
 }
 
 func newWriter(
 	pwd string,
 	writer io.Writer,
+	start float64,
 	cancel context.CancelFunc,
-	calc *utils.PercentCalculator,
+	asyncGcm asyncGcm,
 	config EncryptionConfig,
 	errs chan<- error,
-) *safelockWriter {
-	return &safelockWriter{
-		writer: writer,
-		safelockReaderWriterBase: safelockReaderWriterBase{
+) safelockWriter {
+	return safelockWriter{
+		writer:   writer,
+		asyncGcm: asyncGcm,
+		safelockReaderWriterBase: &safelockReaderWriterBase{
 			pwd:    pwd,
-			calc:   calc,
 			errs:   errs,
 			cancel: cancel,
 			config: config,
+			start:  start,
+			end:    100.0,
 		},
 	}
 }
@@ -44,7 +45,7 @@ func (sw *safelockWriter) Write(chunk []byte) (written int, err error) {
 		return written, sw.handleErr(err)
 	}
 
-	sw.calc.OutputSize += written
+	sw.outputSize += written
 	sw.blocks = append(sw.blocks, fmt.Sprintf("%d", written))
 
 	return
@@ -52,14 +53,14 @@ func (sw *safelockWriter) Write(chunk []byte) (written int, err error) {
 
 func (sw *safelockWriter) WriteHeader() (err error) {
 	sw.asyncGcm.done <- true
-	sw.setSize()
 
-	if 0 >= sw.size {
+	if 0 >= sw.outputSize {
 		return
 	}
 
 	header := "BS;" + strings.Join(sw.blocks, ";")
-	headerBytes := make([]byte, sw.headerSize)
+	headerSize := sw.config.getHeaderSizeIn(sw.outputSize)
+	headerBytes := make([]byte, headerSize)
 	headerBytes = append([]byte(header), headerBytes[len(header):]...)
 
 	if _, err = sw.writer.Write(headerBytes); err != nil {
@@ -68,9 +69,4 @@ func (sw *safelockWriter) WriteHeader() (err error) {
 	}
 
 	return
-}
-
-func (sw *safelockWriter) setSize() {
-	sw.size = sw.calc.OutputSize
-	sw.headerSize = sw.config.getHeaderSizeIn(sw.size)
 }
