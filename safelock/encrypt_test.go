@@ -51,7 +51,7 @@ func TestEncryptFile(t *testing.T) {
 
 	assert.Nil(inErr)
 	assert.Nil(outErr)
-	assert.Equal(content, string(decrypted[:]))
+	assert.Equal(content, string(decrypted))
 }
 
 func TestEncryptFileWithSha256AndGzip(t *testing.T) {
@@ -79,7 +79,7 @@ func TestEncryptFileWithSha256AndGzip(t *testing.T) {
 
 	assert.Nil(inErr)
 	assert.Nil(outErr)
-	assert.Equal(content, string(decrypted[:]))
+	assert.Equal(content, string(decrypted))
 }
 
 func TestEncryptFileWithTimeout(t *testing.T) {

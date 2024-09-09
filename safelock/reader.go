@@ -65,7 +65,7 @@ func (sr *safelockReader) ReadHeader() (err error) {
 		return sr.handleErr(err)
 	}
 
-	header := string(bytes.Trim(headerBytes, "\x00")[:])
+	header := string(bytes.Trim(headerBytes, "\x00"))
 	sr.blocks = strings.Split(header, ";")[1:]
 
 	if len(sr.blocks) == 0 {
@@ -123,7 +123,7 @@ func (sr *safelockReader) Read(chunk []byte) (read int, err error) {
 
 func (sr *safelockReader) handleOverflowIn(chunk *[]byte) (over int, done bool) {
 	if len(sr.overflow) > 0 {
-		over = copy(*chunk, sr.overflow[:])
+		over = copy(*chunk, sr.overflow)
 		sr.overflow = sr.overflow[over:]
 		left := len(*chunk) - over
 
@@ -146,7 +146,6 @@ func (sr *safelockReader) handleOverflowOut(chunk *[]byte, decrypted []byte) (co
 
 	copied = copy(*chunk, chunked)
 	sr.overflow = chunked[copied:]
-	copy(*chunk, chunked[:])
 
 	return
 }
