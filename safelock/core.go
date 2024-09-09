@@ -88,7 +88,7 @@ func getGCM(pwd string, nonce []byte, config EncryptionConfig) (gcm cipher.AEAD,
 func (ag *asyncGcm) encryptChunk(chunk []byte) []byte {
 	item := <-ag.items
 	return append(
-		(*item.gcm).Seal(nil, *item.nonce, chunk[:], nil),
+		(*item.gcm).Seal(nil, *item.nonce, chunk, nil),
 		*item.nonce...,
 	)
 }
