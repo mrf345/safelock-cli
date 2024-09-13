@@ -8,15 +8,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var useSha256 bool
-var useSha512 bool
 var beQuiet bool
 
 var rootCmd = &cobra.Command{
 	Use:     "safelock-cli",
 	Short:   "Simple tool to encrypt/decrypt files with AES encryption",
 	Long:    "Simple command-line tool to encrypt and decrypt files with AES encryption",
-	Version: "0.4.4",
+	Version: "0.5.0",
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
@@ -30,7 +28,5 @@ func Execute() {
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVar(&useSha256, "sha256", false, "use sha256 for hashing")
-	rootCmd.PersistentFlags().BoolVar(&useSha512, "sha512", false, "use sha512 for hashing")
 	rootCmd.PersistentFlags().BoolVar(&beQuiet, "quiet", false, "disable output logs")
 }

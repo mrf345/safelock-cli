@@ -11,8 +11,8 @@ func GetQuietSafelock() *safelock.Safelock {
 	return sl
 }
 
-func GetQuietSha256GzipSafelock() *safelock.Safelock {
-	sl := safelock.NewSha256()
+func GetQuietGzipSafelock() *safelock.Safelock {
+	sl := safelock.New()
 	sl.Compression = archiver.Gz{}
 	sl.Quiet = true
 	return sl

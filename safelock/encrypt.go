@@ -39,9 +39,8 @@ func (sl Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.W
 		}
 
 		ctx, cancel := context.WithCancel(ctx)
-		config := sl.EncryptionConfig
-		gcm := newAsyncGcm(password, config, errs)
-		writer := newWriter(password, output, 20.0, cancel, gcm, config, errs)
+		aead := newAeadWriter(password, output, sl.EncryptionConfig, errs)
+		writer := newWriter(password, output, 20.0, cancel, aead)
 
 		if err = sl.encryptFiles(ctx, inputPaths, writer); err != nil {
 			errs <- err

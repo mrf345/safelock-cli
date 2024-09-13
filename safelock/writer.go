@@ -10,8 +10,7 @@ import (
 type safelockWriter struct {
 	io.Writer
 	*safelockReaderWriterBase
-	writer   io.Writer
-	asyncGcm asyncGcm
+	writer io.Writer
 }
 
 func newWriter(
@@ -19,18 +18,14 @@ func newWriter(
 	writer io.Writer,
 	start float64,
 	cancel context.CancelFunc,
-	asyncGcm asyncGcm,
-	config EncryptionConfig,
-	errs chan<- error,
+	aead *aeadWrapper,
 ) safelockWriter {
 	return safelockWriter{
-		writer:   writer,
-		asyncGcm: asyncGcm,
+		writer: writer,
 		safelockReaderWriterBase: &safelockReaderWriterBase{
+			aead:   aead,
 			pwd:    pwd,
-			errs:   errs,
 			cancel: cancel,
-			config: config,
 			start:  start,
 			end:    100.0,
 		},
@@ -38,7 +33,11 @@ func newWriter(
 }
 
 func (sw *safelockWriter) Write(chunk []byte) (written int, err error) {
-	encrypted := sw.asyncGcm.encryptChunk(chunk)
+	var encrypted []byte
+
+	if encrypted, err = sw.aead.encrypt(chunk); err != nil {
+		return 0, sw.handleErr(err)
+	}
 
 	if written, err = sw.writer.Write(encrypted); err != nil {
 		err = fmt.Errorf("can't write encrypted chunk > %w", err)
@@ -52,15 +51,14 @@ func (sw *safelockWriter) Write(chunk []byte) (written int, err error) {
 }
 
 func (sw *safelockWriter) WriteHeader() (err error) {
-	sw.asyncGcm.done <- true
-
 	if 0 >= sw.outputSize {
 		return
 	}
 
+	sw.setHeaderSize()
+
 	header := "BS;" + strings.Join(sw.blocks, ";")
-	headerSize := sw.config.getHeaderSizeIn(sw.outputSize)
-	headerBytes := make([]byte, headerSize)
+	headerBytes := make([]byte, sw.headerSize)
 	headerBytes = append([]byte(header), headerBytes[len(header):]...)
 
 	if _, err = sw.writer.Write(headerBytes); err != nil {
@@ -69,4 +67,16 @@ func (sw *safelockWriter) WriteHeader() (err error) {
 	}
 
 	return
+}
+
+func (sw *safelockWriter) setHeaderSize() {
+	ratio := sw.aead.config.HeaderRatio
+	size := sw.outputSize / ratio
+
+	if ratio > size {
+		sw.headerSize = ratio
+		return
+	}
+
+	sw.headerSize = (sw.outputSize + size) / ratio
 }
