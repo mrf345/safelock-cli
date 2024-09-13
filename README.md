@@ -9,7 +9,10 @@ safelock-cli
 </a>
 </h1>
 
-Fast files encryption (AES-GCM) package and command-line tool built for speed with Go and [Archiver](https://github.com/mholt/archiver) ⚡
+Fast files encryption package and command-line tool built for speed with Go and [Archiver](https://github.com/mholt/archiver) ⚡
+
+Utilizing `argon2id` and `chacha20poly1305` for encryption, see [default options](#options).
+
 
 ### Install
 
@@ -26,6 +29,7 @@ go get https://github.com/mrf345/safelock-cli@latest
 ```
 
 Or using one of the latest release binaries [here](https://github.com/mrf345/safelock-cli/releases)
+
 
 ### Examples
 
@@ -48,10 +52,21 @@ echo "password123456" | safelock-cli encrypt path_to_encrypt encrypted_file_path
 
 You can find interactive examples of using it as a package to [encrypt](https://pkg.go.dev/github.com/mrf345/safelock-cli/safelock#example-Safelock.Encrypt) and [decrypt](https://pkg.go.dev/github.com/mrf345/safelock-cli/safelock#example-Safelock.Decrypt).
 
-### Performance
 
-- Encryption should be about **20.2** times faster than `gpgtar`, and the decryption **3.3** times.
-- Encryption should be about **9.1** times faster than `7zip`, and the decryption **9.5** times.
+### Options
+
+ Following the default options remanded by [RFC9106](https://datatracker.ietf.org/doc/html/rfc9106#section-7.4) and [crypto/argon2](https://pkg.go.dev/golang.org/x/crypto/argon2#IDKey)
+
+| Option                  | Value                                       |
+|-------------------------|---------------------------------------------|
+| Iterations              | 3                                           |
+| Memory size             | 64 Megabytes                                |
+| Key length              | 32                                          |
+| Threads                 | Number of available cores `runtime.NumCPU()`|
+| Minimum password length | 8                                           |
+
+
+### Performance
 
 > [!NOTE]
 > You can reproduce the results by running [bench_and_plot.py](benchmark/bench_and_plot.py) (based on [Matplotlib](https://github.com/matplotlib/matplotlib) and [Hyperfine](https://github.com/sharkdp/hyperfine))

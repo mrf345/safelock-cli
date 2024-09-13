@@ -5,7 +5,7 @@ import random
 import matplotlib.pyplot as plt
 from matplotlib.colors import XKCD_COLORS as plot_colors
 
-safelock_cmd = "~/Projects/safelock-cli/safelock-cli"
+safelock_cmd = "safelock-cli"
 pwd = "123456789"
 rest = "60s"
 input_path = "Videos"
