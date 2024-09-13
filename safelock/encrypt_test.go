@@ -54,12 +54,12 @@ func TestEncryptFile(t *testing.T) {
 	assert.Equal(content, string(decrypted))
 }
 
-func TestEncryptFileWithSha256AndGzip(t *testing.T) {
+func TestEncryptFileWithGzip(t *testing.T) {
 	assert := assert.New(t)
 	password := "testing123456"
 	content := "Hello World!"
-	encSl := GetQuietSha256GzipSafelock()
-	decSl := GetQuietSha256GzipSafelock()
+	encSl := GetQuietGzipSafelock()
+	decSl := GetQuietGzipSafelock()
 	inputFile, _ := os.CreateTemp("", "input_file")
 	outputDir, _ := os.MkdirTemp("", "output_dir")
 	outputFile, _ := os.CreateTemp(outputDir, "output_file.sla")

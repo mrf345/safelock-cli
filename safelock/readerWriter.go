@@ -9,19 +9,18 @@ type getPercent interface {
 }
 
 type safelockReaderWriterBase struct {
-	config                EncryptionConfig
-	pwd                   string
-	errs                  chan<- error
-	cancel                context.CancelFunc
-	blocks                []string
-	err                   error
-	start, end            float64
-	inputSize, outputSize int
+	pwd                               string
+	cancel                            context.CancelFunc
+	blocks                            []string
+	err                               error
+	aead                              *aeadWrapper
+	start, end                        float64
+	inputSize, outputSize, headerSize int
 }
 
 func (srw *safelockReaderWriterBase) handleErr(err error) error {
 	srw.err = err
-	srw.errs <- err
+	srw.aead.errs <- err
 	srw.cancel()
 	return err
 }

@@ -28,16 +28,14 @@ func newReader(
 	reader InputReader,
 	start float64,
 	cancel context.CancelFunc,
-	config EncryptionConfig,
-	errs chan<- error,
+	aead *aeadWrapper,
 ) safelockReader {
 	return safelockReader{
 		reader: reader,
 		safelockReaderWriterBase: &safelockReaderWriterBase{
 			pwd:    pwd,
-			errs:   errs,
+			aead:   aead,
 			cancel: cancel,
-			config: config,
 			start:  start,
 			end:    100.0,
 		},
@@ -47,13 +45,25 @@ func newReader(
 func (sr *safelockReader) setInputSize() (err error) {
 	size, err := sr.reader.Seek(0, io.SeekEnd)
 	sr.inputSize = int(size)
+	sr.setHeaderSize()
 	return
 }
 
+func (sr *safelockReader) setHeaderSize() {
+	ratio := sr.aead.config.HeaderRatio
+	size := sr.inputSize / ratio
+
+	if ratio > size {
+		sr.headerSize = ratio
+		return
+	}
+
+	sr.headerSize = sr.inputSize / ratio
+}
+
 func (sr *safelockReader) ReadHeader() (err error) {
-	headerSize := sr.config.getHeaderSizeOut(sr.inputSize)
-	sizeDiff := int64(sr.inputSize - headerSize)
-	headerBytes := make([]byte, headerSize)
+	sizeDiff := int64(sr.inputSize - sr.headerSize)
+	headerBytes := make([]byte, sr.headerSize)
 
 	if _, err = sr.reader.Seek(sizeDiff, io.SeekStart); err != nil {
 		err = fmt.Errorf("can't seek header > %w", err)
@@ -73,7 +83,7 @@ func (sr *safelockReader) ReadHeader() (err error) {
 		return
 	}
 
-	if _, err = sr.reader.Seek(0, io.SeekStart); err != nil {
+	if _, err = sr.reader.Seek(int64(sr.aead.config.SaltLength), io.SeekStart); err != nil {
 		return sr.handleErr(err)
 	}
 
@@ -111,7 +121,7 @@ func (sr *safelockReader) Read(chunk []byte) (read int, err error) {
 		return read, sr.handleErr(err)
 	}
 
-	if decrypted, err = decryptChunk(encrypted, sr.pwd, read, sr.config); err != nil {
+	if decrypted, err = sr.aead.decrypt(encrypted); err != nil {
 		err = fmt.Errorf("can't decrypt chunk > %w", err)
 		return read, sr.handleErr(err)
 	}

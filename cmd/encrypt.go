@@ -33,13 +33,7 @@ var encryptCmd = &cobra.Command{
 			utils.PrintErrsAndExit("too many arguments", example)
 		}
 
-		if useSha256 {
-			sl = safelock.NewSha256()
-		} else if useSha512 {
-			sl = safelock.NewSha512()
-		} else {
-			sl = safelock.New()
-		}
+		sl = safelock.New()
 
 		if pwd, err = utils.GetPassword(sl.MinPasswordLength); err != nil {
 			utils.PrintErrsAndExit(err.Error())

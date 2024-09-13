@@ -1,4 +1,4 @@
-// Fast files encryption (AES-GSM) package ⚡
+// Fast files encryption package ⚡
 //
 // Check [encryption] and [decryption] for interactive examples.
 //

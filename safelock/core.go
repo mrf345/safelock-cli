@@ -1,112 +1,156 @@
 package safelock
 
 import (
-	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"io"
 
 	slErrs "github.com/mrf345/safelock-cli/slErrs"
-	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/crypto/argon2"
+	"golang.org/x/crypto/chacha20poly1305"
 )
 
-type asyncGcmItem struct {
-	gcm   *cipher.AEAD
-	nonce *[]byte
+type aeadWrapper struct {
+	config    EncryptionConfig
+	salt      []byte
+	pwd       []byte
+	errs      chan error
+	counter   int
+	aead      cipher.AEAD
+	aeadReady bool
+	aeadDone  chan bool
 }
 
-type asyncGcm struct {
-	items  chan *asyncGcmItem
-	pwd    string
-	config EncryptionConfig
-	errs   chan<- error
-	done   chan bool
-}
-
-func newAsyncGcm(pwd string, config EncryptionConfig, errs chan<- error) asyncGcm {
-	ag := asyncGcm{
-		pwd:    pwd,
-		config: config,
-		errs:   errs,
-		done:   make(chan bool, 1),
-		items:  make(chan *asyncGcmItem, config.GcmBufferSize),
+func newAeadWriter(pwd string, w io.Writer, config EncryptionConfig, errs chan error) *aeadWrapper {
+	aw := &aeadWrapper{
+		pwd:      []byte(pwd),
+		config:   config,
+		errs:     errs,
+		aeadDone: make(chan bool, 2),
 	}
-	go ag.load()
-	return ag
+	aw.writeSalt(w)
+	go aw.loadAead()
+	return aw
 }
 
-func (ag *asyncGcm) load() {
+func newAeadReader(pwd string, r InputReader, config EncryptionConfig, errs chan error) *aeadWrapper {
+	aw := &aeadWrapper{
+		pwd:      []byte(pwd),
+		config:   config,
+		errs:     errs,
+		aeadDone: make(chan bool, 2),
+	}
+	aw.readSalt(r)
+	go aw.loadAead()
+	return aw
+}
+
+func (aw *aeadWrapper) getAead() cipher.AEAD {
+	if !aw.aeadReady {
+		aw.aeadReady = <-aw.aeadDone
+	}
+
+	return aw.aead
+}
+
+func (aw *aeadWrapper) writeSalt(w io.Writer) {
 	var err error
 
-	for {
-		var gcm cipher.AEAD
-		var nonce = make([]byte, ag.config.NonceLength)
+	aw.salt = make([]byte, aw.config.SaltLength)
 
-		select {
-		case <-ag.done:
-			close(ag.items)
-			close(ag.done)
-			return
-		default:
-			if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-				ag.errs <- fmt.Errorf("failed to create random nonce > %w", err)
-				return
-			}
+	if _, err = io.ReadFull(rand.Reader, aw.salt); err != nil {
+		aw.errs <- fmt.Errorf("failed to create random salt > %w", err)
+		return
+	}
 
-			if gcm, err = getGCM(ag.pwd, nonce, ag.config); err != nil {
-				ag.errs <- err
-				return
-			}
-
-			ag.items <- &asyncGcmItem{
-				gcm:   &gcm,
-				nonce: &nonce,
-			}
-		}
+	if _, err = w.Write(aw.salt); err != nil {
+		aw.errs <- fmt.Errorf("failed to write salt > %w", err)
+		return
 	}
 }
 
-func getGCM(pwd string, nonce []byte, config EncryptionConfig) (gcm cipher.AEAD, err error) {
-	var block cipher.Block
+func (aw *aeadWrapper) readSalt(r InputReader) {
+	var err error
+	var sought int
 
-	key := pbkdf2.Key([]byte(pwd), nonce, config.KeyLength, config.IterationCount, config.Hash)
-
-	if block, err = aes.NewCipher(key); err != nil {
-		err = fmt.Errorf("failed to create new cipher > %w", err)
+	if _, err = r.Seek(0, io.SeekStart); err != nil {
+		aw.errs <- fmt.Errorf("failed to read input > %w", err)
 		return
 	}
 
-	if gcm, err = cipher.NewGCM(block); err != nil {
-		err = fmt.Errorf("failed to create new GCM > %w", err)
+	aw.salt = make([]byte, aw.config.SaltLength)
+
+	if sought, err = r.Read(aw.salt); err != nil {
+		aw.errs <- fmt.Errorf("failed to read salt from input > %w", err)
+		return
+	} else if sought != aw.config.SaltLength {
+		aw.errs <- fmt.Errorf("invalid file or corrupted encryption (missing salt)")
 		return
 	}
+}
+
+func (aw *aeadWrapper) loadAead() {
+	var err error
+
+	if aw.config.SaltLength > len(aw.salt) {
+		aw.errs <- errors.New("missing salt, most probably race condition")
+		return
+	}
+
+	key := argon2.IDKey(
+		aw.pwd,
+		aw.salt,
+		aw.config.IterationCount,
+		aw.config.MemSize,
+		aw.config.Threads,
+		aw.config.KeyLength,
+	)
+
+	if aw.aead, err = chacha20poly1305.NewX(key); err != nil {
+		aw.errs <- fmt.Errorf("failed to create AEAD > %w", err)
+		return
+	}
+
+	aw.aeadDone <- true
+}
+
+func (aw *aeadWrapper) encrypt(chunk []byte) (encrypted []byte, err error) {
+	aead := aw.getAead()
+	idx := []byte(fmt.Sprintf("%d", aw.counter))
+	nonce := make([]byte, aead.NonceSize())
+
+	if _, err = rand.Read(nonce); err != nil {
+		aw.errs <- fmt.Errorf("failed to generate nonce > %w", err)
+		return
+	}
+
+	encrypted = append(nonce, aead.Seal(nil, nonce, chunk, idx)...)
+	aw.counter += 1
 
 	return
 }
 
-func (ag *asyncGcm) encryptChunk(chunk []byte) []byte {
-	item := <-ag.items
-	return append(
-		(*item.gcm).Seal(nil, *item.nonce, chunk, nil),
-		*item.nonce...,
-	)
-}
+func (aw *aeadWrapper) decrypt(chunk []byte) (output []byte, err error) {
+	aead := aw.getAead()
 
-func decryptChunk(chunk []byte, pwd string, limit int, config EncryptionConfig) (output []byte, err error) {
-	var gcm cipher.AEAD
-
-	encrypted := chunk[:limit-(config.NonceLength)]
-	nonce := chunk[limit-(config.NonceLength) : limit]
-
-	if gcm, err = getGCM(pwd, nonce, config); err != nil {
+	if aead.NonceSize() > len(chunk) {
+		err = &slErrs.ErrFailedToAuthenticate{Msg: "chunk size size"}
+		aw.errs <- err
 		return
 	}
 
-	if output, err = gcm.Open(nil, nonce, encrypted, nil); err != nil {
+	idx := []byte(fmt.Sprintf("%d", aw.counter))
+	nonce := chunk[:aead.NonceSize()]
+	encrypted := chunk[aead.NonceSize():]
+
+	if output, err = aead.Open(nil, nonce, encrypted, idx); err != nil {
 		err = &slErrs.ErrFailedToAuthenticate{Msg: err.Error()}
+		aw.errs <- err
 		return
 	}
 
+	aw.counter += 1
 	return
 }

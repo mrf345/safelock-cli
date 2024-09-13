@@ -39,7 +39,8 @@ func (sl Safelock) Decrypt(ctx context.Context, input InputReader, outputPath, p
 		}
 
 		ctx, cancel := context.WithCancel(ctx)
-		reader := newReader(password, input, 1.0, cancel, sl.EncryptionConfig, errs)
+		aead := newAeadReader(password, input, sl.EncryptionConfig, errs)
+		reader := newReader(password, input, 1.0, cancel, aead)
 
 		if err = reader.setInputSize(); err != nil {
 			errs <- fmt.Errorf("failed to read input > %w", err)
