@@ -2,10 +2,13 @@
 <h1>
 safelock-cli
 <a href='https://github.com/mrf345/safelock-cli/actions/workflows/ci.yml'>
-  <img src='https://github.com/mrf345/safelock-cli/actions/workflows/ci.yml/badge.svg'>
+  <img src='https://github.com/mrf345/safelock-cli/actions/workflows/ci.yml/badge.svg' alt='build status'>
+</a>
+<a href='https://github.com/golangci/golangci-lint/tree/master'>
+  <img src='https://img.shields.io/badge/linter-golangci--lint-blue.svg?logo=go&logoColor=white' alt='linter badge'>
 </a>
 <a href="https://pkg.go.dev/github.com/mrf345/safelock-cli/safelock">
-  <img src="https://pkg.go.dev/badge/github.com/mrf345/safelock-cli/.svg" alt="Go Reference">
+  <img src='https://img.shields.io/badge/reference-blue.svg?logo=go&logoColor=white' alt='Go Reference'>
 </a>
 </h1>
 
@@ -61,6 +64,7 @@ You can find interactive examples of using it as a package to [encrypt](https://
 |-------------------------|---------------------------------------------|
 | Iterations              | 3                                           |
 | Memory size             | 64 Megabytes                                |
+| Salt length             | 16                                          |
 | Key length              | 32                                          |
 | Threads                 | Number of available cores `runtime.NumCPU()`|
 | Minimum password length | 8                                           |
