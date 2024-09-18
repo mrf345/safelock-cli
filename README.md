@@ -2,7 +2,7 @@
 <h1>
 safelock-cli
 <a href='https://github.com/mrf345/safelock-cli/actions/workflows/ci.yml'>
-  <img src='https://github.com/mrf345/safelock-cli/actions/workflows/ci.yml/badge.svg' alt='build status>
+  <img src='https://github.com/mrf345/safelock-cli/actions/workflows/ci.yml/badge.svg' alt='build status'>
 </a>
 <a href='https://github.com/golangci/golangci-lint/tree/master'>
   <img src='https://img.shields.io/badge/linter-golangci--lint-blue.svg?logo=go&logoColor=white' alt='linter badge'>
