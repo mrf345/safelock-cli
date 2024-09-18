@@ -41,8 +41,9 @@ var encryptCmd = &cobra.Command{
 
 		sl.Quiet = beQuiet
 		inputPath, outputPath := []string{args[0]}, args[1]
+		fileFlags := os.O_RDWR | os.O_CREATE | os.O_TRUNC
 
-		if outputFile, err = os.OpenFile(outputPath, os.O_RDWR|os.O_CREATE, 0755); err != nil {
+		if outputFile, err = os.OpenFile(outputPath, fileFlags, 0755); err != nil {
 			utils.PrintErrsAndExit((&slErrs.ErrInvalidOutputPath{
 				Path: outputPath,
 				Err:  err,
