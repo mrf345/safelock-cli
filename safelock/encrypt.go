@@ -16,21 +16,20 @@ import (
 // outputs into an object `output` that implements [io.Writer] such as [io.File]
 //
 // NOTE: `ctx` context is optional you can pass `nil` and the method will handle it
-func (sl Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.Writer, password string) (err error) {
+func (sl *Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.Writer, password string) (err error) {
 	errs := make(chan error)
+	go sl.loadRandom(errs)
+	aead := newAeadWriter(password, output, sl.EncryptionConfig, errs)
 	signals, closeSignals := utils.GetExitSignals()
+	unSubStatus := sl.StatusObs.Subscribe(sl.logStatus)
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	sl.StatusObs.
-		On(StatusUpdate.Str(), sl.logStatus).
-		Trigger(StatusStart.Str())
-
-	defer sl.StatusObs.
-		Off(StatusUpdate.Str(), sl.logStatus).
-		Trigger(StatusEnd.Str())
+	sl.StatusObs.next(StatusItem{Event: StatusStart})
+	defer sl.StatusObs.next(StatusItem{Event: StatusEnd})
+	defer unSubStatus()
 
 	go func() {
 		if err = sl.validateEncryptionInputs(inputPaths, password); err != nil {
@@ -39,7 +38,6 @@ func (sl Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.W
 		}
 
 		ctx, cancel := context.WithCancel(ctx)
-		aead := newAeadWriter(password, output, sl.EncryptionConfig, errs)
 		writer := newWriter(password, output, 20.0, cancel, aead)
 
 		if err = sl.encryptFiles(ctx, inputPaths, writer); err != nil {
@@ -63,7 +61,7 @@ func (sl Safelock) Encrypt(ctx context.Context, inputPaths []string, output io.W
 			err = context.DeadlineExceeded
 			return
 		case err = <-errs:
-			sl.StatusObs.Trigger(StatusError.Str(), err)
+			sl.StatusObs.next(StatusItem{Event: StatusError, Err: err})
 			return
 		case <-signals:
 			return

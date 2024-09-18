@@ -2,10 +2,11 @@ package safelock
 
 import (
 	"context"
+	"crypto/rand"
+	"fmt"
 	"io"
 	"runtime"
 
-	"github.com/GianlucaGuarini/go-observable"
 	"github.com/klauspost/compress/zstd"
 	"github.com/mholt/archiver/v4"
 )
@@ -14,7 +15,7 @@ import (
 type EncryptionConfig struct {
 	// encryption key length (default: 32)
 	KeyLength uint32
-	// encryption salt length (default: 12)
+	// encryption salt length (default: 16)
 	SaltLength int
 	// number of argon2 hashing iterations (default: 3)
 	IterationCount uint32
@@ -26,6 +27,21 @@ type EncryptionConfig struct {
 	MinPasswordLength int
 	// ratio to create file header size based on (default: 1024 * 4)
 	HeaderRatio int
+
+	random chan []byte
+}
+
+func (ec *EncryptionConfig) loadRandom(errs chan error) {
+	for {
+		nonce := make([]byte, 50)
+
+		if _, err := rand.Read(nonce); err != nil {
+			errs <- fmt.Errorf("failed to generate random bytes > %w", err)
+			return
+		}
+
+		ec.random <- nonce
+	}
 }
 
 // archiving and compression configuration settings
@@ -49,7 +65,7 @@ type Safelock struct {
 	// disable all output and logs (default: false)
 	Quiet bool
 	// observable instance that allows us to stream the status to multiple listeners
-	StatusObs *observable.Observable
+	StatusObs *StatusObservable
 }
 
 // creates a new [safelock.Safelock] instance with the default recommended options
@@ -66,12 +82,13 @@ func New() *Safelock {
 		EncryptionConfig: EncryptionConfig{
 			IterationCount:    3,
 			KeyLength:         32,
-			SaltLength:        12,
+			SaltLength:        16,
 			MinPasswordLength: 8,
 			HeaderRatio:       1024 * 4,
 			MemSize:           64 * 1024,
 			Threads:           uint8(runtime.NumCPU()),
+			random:            make(chan []byte, 500),
 		},
-		StatusObs: observable.New(),
+		StatusObs: NewStatusObs(),
 	}
 }

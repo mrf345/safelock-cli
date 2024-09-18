@@ -3,7 +3,6 @@ module github.com/mrf345/safelock-cli
 go 1.22
 
 require (
-	github.com/GianlucaGuarini/go-observable v0.0.0-20171228155646-e39e699e0a00
 	github.com/inancgumus/screen v0.0.0-20190314163918-06e984b86ed3
 	github.com/mholt/archiver/v4 v4.0.0-alpha.8
 	github.com/spf13/cobra v1.8.1

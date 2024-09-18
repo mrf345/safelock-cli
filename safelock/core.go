@@ -2,8 +2,6 @@ package safelock
 
 import (
 	"crypto/cipher"
-	"crypto/rand"
-	"errors"
 	"fmt"
 	"io"
 
@@ -30,8 +28,7 @@ func newAeadWriter(pwd string, w io.Writer, config EncryptionConfig, errs chan e
 		errs:     errs,
 		aeadDone: make(chan bool, 2),
 	}
-	aw.writeSalt(w)
-	go aw.loadAead()
+	go aw.writeSaltAndLoad(w)
 	return aw
 }
 
@@ -55,20 +52,15 @@ func (aw *aeadWrapper) getAead() cipher.AEAD {
 	return aw.aead
 }
 
-func (aw *aeadWrapper) writeSalt(w io.Writer) {
-	var err error
+func (aw *aeadWrapper) writeSaltAndLoad(w io.Writer) {
+	aw.salt = (<-aw.config.random)[:aw.config.SaltLength]
 
-	aw.salt = make([]byte, aw.config.SaltLength)
-
-	if _, err = io.ReadFull(rand.Reader, aw.salt); err != nil {
-		aw.errs <- fmt.Errorf("failed to create random salt > %w", err)
-		return
-	}
-
-	if _, err = w.Write(aw.salt); err != nil {
+	if _, err := w.Write(aw.salt); err != nil {
 		aw.errs <- fmt.Errorf("failed to write salt > %w", err)
 		return
 	}
+
+	aw.loadAead()
 }
 
 func (aw *aeadWrapper) readSalt(r InputReader) {
@@ -94,11 +86,6 @@ func (aw *aeadWrapper) readSalt(r InputReader) {
 func (aw *aeadWrapper) loadAead() {
 	var err error
 
-	if aw.config.SaltLength > len(aw.salt) {
-		aw.errs <- errors.New("missing salt, most probably race condition")
-		return
-	}
-
 	key := argon2.IDKey(
 		aw.pwd,
 		aw.salt,
@@ -116,27 +103,19 @@ func (aw *aeadWrapper) loadAead() {
 	aw.aeadDone <- true
 }
 
-func (aw *aeadWrapper) encrypt(chunk []byte) (encrypted []byte, err error) {
-	aead := aw.getAead()
+func (aw *aeadWrapper) encrypt(chunk []byte) []byte {
 	idx := []byte(fmt.Sprintf("%d", aw.counter))
-	nonce := make([]byte, aead.NonceSize())
-
-	if _, err = rand.Read(nonce); err != nil {
-		aw.errs <- fmt.Errorf("failed to generate nonce > %w", err)
-		return
-	}
-
-	encrypted = append(nonce, aead.Seal(nil, nonce, chunk, idx)...)
+	aead := aw.getAead()
+	nonce := (<-aw.config.random)[:aead.NonceSize()]
 	aw.counter += 1
-
-	return
+	return append(nonce, aead.Seal(nil, nonce, chunk, idx)...)
 }
 
 func (aw *aeadWrapper) decrypt(chunk []byte) (output []byte, err error) {
 	aead := aw.getAead()
 
 	if aead.NonceSize() > len(chunk) {
-		err = &slErrs.ErrFailedToAuthenticate{Msg: "chunk size size"}
+		err = &slErrs.ErrFailedToAuthenticate{Msg: "invalid chunk size"}
 		aw.errs <- err
 		return
 	}
