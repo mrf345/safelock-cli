@@ -33,13 +33,7 @@ func newWriter(
 }
 
 func (sw *safelockWriter) Write(chunk []byte) (written int, err error) {
-	var encrypted []byte
-
-	if encrypted, err = sw.aead.encrypt(chunk); err != nil {
-		return 0, sw.handleErr(err)
-	}
-
-	if written, err = sw.writer.Write(encrypted); err != nil {
+	if written, err = sw.writer.Write(sw.aead.encrypt(chunk)); err != nil {
 		err = fmt.Errorf("can't write encrypted chunk > %w", err)
 		return written, sw.handleErr(err)
 	}

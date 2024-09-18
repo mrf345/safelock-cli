@@ -16,21 +16,18 @@ import (
 // and then outputs the content into `outputPath` which must be a valid path to an existing directory
 //
 // NOTE: `ctx` context is optional you can pass `nil` and the method will handle it
-func (sl Safelock) Decrypt(ctx context.Context, input InputReader, outputPath, password string) (err error) {
+func (sl *Safelock) Decrypt(ctx context.Context, input InputReader, outputPath, password string) (err error) {
 	errs := make(chan error)
 	signals, closeSignals := utils.GetExitSignals()
+	unSubStatus := sl.StatusObs.Subscribe(sl.logStatus)
 
 	if ctx == nil {
 		ctx = context.Background()
 	}
 
-	sl.StatusObs.
-		On(StatusUpdate.Str(), sl.logStatus).
-		Trigger(StatusStart.Str())
-
-	defer sl.StatusObs.
-		Off(StatusUpdate.Str(), sl.logStatus).
-		Trigger(StatusEnd.Str())
+	sl.StatusObs.next(StatusItem{Event: StatusStart})
+	defer sl.StatusObs.next(StatusItem{Event: StatusEnd})
+	defer unSubStatus()
 
 	go func() {
 		if err = sl.validateDecryptionPaths(outputPath); err != nil {
@@ -68,7 +65,7 @@ func (sl Safelock) Decrypt(ctx context.Context, input InputReader, outputPath, p
 			err = context.DeadlineExceeded
 			return
 		case err = <-errs:
-			sl.StatusObs.Trigger(StatusError.Str(), err)
+			sl.StatusObs.next(StatusItem{Event: StatusError, Err: err})
 			return
 		case <-signals:
 			return
