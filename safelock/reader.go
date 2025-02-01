@@ -37,7 +37,7 @@ func newReader(
 			aead:   aead,
 			cancel: cancel,
 			start:  start,
-			end:    100.0,
+			end:    99.99,
 		},
 	}
 }
