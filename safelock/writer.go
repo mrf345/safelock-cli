@@ -27,7 +27,7 @@ func newWriter(
 			pwd:    pwd,
 			cancel: cancel,
 			start:  start,
-			end:    100.0,
+			end:    99.99,
 		},
 	}
 }
